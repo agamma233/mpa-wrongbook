@@ -5,13 +5,17 @@ const h=await harness({serviceWorkers:'block'}),uid='33333333-3333-4333-8333-333
 const project='https://yladshlpuspylvexuial.supabase.co';let pushes=0,offline=false,authorizedUrl,rows=[],activePage,network=[];
 const session=id=>({access_token:[btoa('{}'),btoa(JSON.stringify({sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})), 'synthetic'].join('.'),refresh_token:'synthetic-refresh',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',user_metadata:{user_name:id===uid?'fixture-A':'fixture-B'}}});
 try{
- await h.context.route(project+'/**',async route=>{const r=route.request(),url=new URL(r.url());network.push(url.pathname);if(offline){await route.abort();return;}let data={};
+ await h.context.route(project+'/**',async route=>{const r=route.request(),url=new URL(r.url());network.push(url.pathname);const headers={'access-control-allow-origin':new URL(h.base).origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS'};
+  // API outage is HTTP 503 here. Real socket loss is covered in transport/PWA tests;
+  // WebKit can emit a browser pageerror for an injected cross-origin route.abort().
+  if(r.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+  if(offline){await route.fulfill({status:503,headers,contentType:'application/json',body:JSON.stringify({message:'synthetic API outage'})});return;}let data={};
   if(url.pathname.endsWith('/authorize')){authorizedUrl=url;await route.fulfill({contentType:'text/html',body:'<p>synthetic OAuth provider</p>'});return;}
   if(url.pathname.endsWith('/token'))data=session(uid);
   else if(url.pathname.endsWith('/user'))data=session(uid).user;
   else if(url.pathname.endsWith('/append_wrongbook_ops')){pushes++;const {batch}=r.postDataJSON();for(const op of batch)if(!rows.some(x=>x.operation.id===op.id))rows.push({commit_seq:rows.length+1,operation:op});data=batch.map(op=>op.id);}
   else if(url.pathname.endsWith('/pull_wrongbook_ops'))data=rows.filter(x=>x.commit_seq>r.postDataJSON().after_seq);
-  await route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
+  await route.fulfill({headers,contentType:'application/json',body:JSON.stringify(data)});
  });
  const p=activePage=await h.context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(h.base);await p.waitForSelector('article');
  const note=p.locator('textarea').first();await note.fill('synthetic anonymous stays separate');await p.getByText('已保存本机',{exact:true}).waitFor();
@@ -34,5 +38,5 @@ try{
  await p.evaluate(async({uid,session})=>{const {authStorage}=await import('./auth-storage.js');await authStorage('mpa-auth-yladshlpuspylvexuial.supabase.co').setItem('mpa-auth-yladshlpuspylvexuial.supabase.co',JSON.stringify(session));},{uid:uid2,session:session(uid2)});
  const before=pushes;await p.reload();await p.locator('#account-status').filter({hasText:'fixture-B'}).waitFor();assert.equal(await note.inputValue(),'');assert.equal(pushes,before);assert.match(await p.locator('#sync-status').innerText(),/尚未允许上传/);
  assert.deepEqual(errors,[]);
- console.log('PASS: pinned official SDK, persistent PKCE callback/session, login does not upload, verified v3 + explicit consent, user DB isolation, offline edit/reload/retry, same-context second tab, cross-tab pause preserves pending, logout anonymous restore, session isolation (HTTP simulated, SW disabled; public cache exclusions tested in pwa.mjs)');
+ console.log('PASS: pinned official SDK, persistent PKCE callback/session, login does not upload, verified v3 + explicit consent, user DB isolation, API outage + expired-session local edit/reload/retry, same-context second tab, cross-tab pause preserves pending, logout anonymous restore, session isolation (HTTP simulated, SW disabled; public cache exclusions tested in pwa.mjs)');
 }catch(e){console.error(network);console.error(await activePage?.locator('#cloud-controls').innerText(),await activePage?.locator('#message').innerText());await activePage?.screenshot({path:'test-results/cloud-ui-failure-'+(process.env.BROWSER_ENGINE||'chromium')+'.png'});throw e;}finally{await h.close();}
