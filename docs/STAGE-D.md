@@ -1,6 +1,6 @@
 # D：Supabase 正式接入与验收记录
 
-已连接项目 `yladshlpuspylvexuial` 的公开配置，PR #6（`dff220b`）已合并并由 Actions [39955623998](https://github.com/agamma233/mpa-wrongbook/actions/runs/39955623998) 成功部署。默认不上传；生产 UI 提供 GitHub 登录和单独的备份/许可流程。真实数据库和匿名 HTTP 验证通过；OAuth 已到 GitHub 授权页，尚待用户完成新增授权。真实设备验收未完成。
+已连接项目 `yladshlpuspylvexuial` 的公开配置，PR #6（`dff220b`）已合并并由 Actions [39955623998](https://github.com/agamma233/mpa-wrongbook/actions/runs/39955623998) 成功部署。默认不上传；生产 UI 提供 GitHub 登录和单独的备份/许可流程。真实数据库和匿名 HTTP 验证通过；用户确认授权后，真实 Chrome GitHub OAuth PKCE 已成功回到 Pages 子路径，显示正确账号，且登录后仍未允许上传。真实设备验收未完成。
 
 ## 接入步骤
 
