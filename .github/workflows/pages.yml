@@ -28,6 +28,7 @@ jobs:
       - run: node --test tests/*.test.js
       - run: python scripts/manage.py build
       - run: npm install --ignore-scripts
+      - run: node tests/cloud-sql.mjs
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:browser
       - run: BROWSER_ENGINE=webkit npm run test:browser
@@ -35,6 +36,8 @@ jobs:
       - run: BROWSER_ENGINE=webkit node tests/reliability.mjs
       - run: node tests/transport.mjs
       - run: BROWSER_ENGINE=webkit node tests/transport.mjs
+      - run: node tests/cloud.mjs
+      - run: BROWSER_ENGINE=webkit node tests/cloud.mjs
       - run: python scripts/verify_fixture.py
       - uses: actions/upload-pages-artifact@v3
         with:
