@@ -61,13 +61,13 @@ python3 scripts/manage.py audit
 
 ## 复习记录与备份
 
-题库通过 GitHub 提交和网站构建更新。个人记录使用 localStorage，随浏览器和设备隔离。
+题库通过 GitHub 更新；个人记录以 IndexedDB v3 为唯一权威。localStorage 旧键保留原文，不再写入个人记录；首次启动在同一事务内迁移 v1/v2。读取损坏时进入恢复模式，禁止空状态覆盖。
 
-- 先“导出复习记录”，再在另一设备“导入复习记录”。导入会先校验全文件，再合并历史答题并按记录ID去重。
-- 笔记冲突保留两份内容；掌握状态按较新的更新时间合并。重复导入不会重复添加相同笔记或答题记录；格式错误时原有记录不变。
-- 旧版 mpa_wrongbook_review_v1 自动迁移且保留原键；旧版导出 JSON 也可导入。
-- 清理浏览器、使用无痕模式或换设备前请导出。题库备份需包含 content、assets、legacy，个人复习JSON另存，不上传仓库。
-- 间隔复习：未掌握1天、复习中3天、已掌握7天，状态变更后重新安排。先联网访问一次可离线重载；图片和字体访问后缓存。
+- 页面显示“已保存本机”表示事务已完成；失败时保留当前草稿，点击“紧急导出草稿与原始数据”。清除浏览器前请保存完整 v3 备份。
+- 完整 v3 备份包含不可变操作、笔记祖先/冲突、迁移原文、检查点和待发送信息。导入先验证操作，再在事务内按最新状态合并并留检查点；重复导入不重复事件，失败不部分写入。恢复不信任设备身份、账号或已发送标记。
+- v2 兼容导出仅包含显示记录，不含笔记分支与清空历史，不适合完整恢复。v1、v2、历史 JSON 均可迁移或导入。
+- 不同字段各自合并；掌握状态和下次复习日期成组。笔记并发修改保留独立版本，可“以当前笔记解决冲突”；清空也是新版本，旧版本不回收。答题 ID 相同但内容不同会拒绝整个导入。
+- 云服务默认未配置，尚无跨设备实时同步。先导出再到另一设备导入。浏览器清理、系统回收、无痕模式仍可能删除本机数据库，独立备份不可省略。
 
 ## 测试
 
@@ -75,9 +75,12 @@ python3 scripts/manage.py audit
 python3 -m unittest discover -s tests
 npm install --ignore-scripts
 npm test
-npx playwright install chromium
+npx playwright install chromium webkit
 python3 scripts/manage.py build
 npm run test:browser
+BROWSER_ENGINE=webkit npm run test:browser
+node tests/reliability.mjs
+BROWSER_ENGINE=webkit node tests/reliability.mjs
 python3 scripts/verify_fixture.py
 ```
 
