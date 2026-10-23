@@ -15,6 +15,7 @@ export class RecordStore{
   this.pending.add(run);try{return await run;}finally{this.pending.delete(run);}
  }
  async idle(){await Promise.all([...this.pending]);}
+ async consent(project,value){const result=await this.transaction(value!==undefined,async s=>{const key='cloud-consent:'+project;if(value!==undefined){const meta=await request(s.meta.get('state'));if(!meta||!Number.isSafeInteger(meta.seq+1))throw Error('数据库元数据无效');meta.seq++;s.meta.put(value===true,key);s.meta.put(meta,'state');return {meta,granted:value===true};}return {granted:await request(s.meta.get(key))===true};});return result.granted;}
  async inspect(s){
   const [meta,operations,records,outbox]=await Promise.all([request(s.meta.get('state')),request(s.operations.getAll()),request(s.records.get('all')),request(s.outbox.getAll())]);
   const merged=union(operations),rows=project(merged),ids=new Set(merged.map(op=>op.id));

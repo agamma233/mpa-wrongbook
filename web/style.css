@@ -2,3 +2,4 @@
 article{min-width:0}.text,.options button{overflow-x:auto}.katex-display{max-width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
 
 pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}aside{border:1px solid var(--accent);border-radius:12px;padding:16px}button:disabled{opacity:.6}main{padding-bottom:max(24px,env(safe-area-inset-bottom))}
+#cloud-controls{border:1px solid var(--line);border-radius:12px;padding:16px}#cloud-controls button{margin:4px 4px 4px 0}#cloud-consent{border-top:1px solid var(--line);margin-top:12px}#cloud-consent>label{display:block;margin:12px 0}input[type=checkbox]{min-height:24px;width:24px;vertical-align:middle}button:disabled{cursor:default}
