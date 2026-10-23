@@ -9,7 +9,7 @@ export function validatePublicConfig(url,key){
  throw Error('前端只接受 publishable 或 anon key；禁止 secret/service-role/密码');
 }
 export function createCloudWorkspace({createClient,url,key,anonymous,onState}){
- validatePublicConfig(url,key);return new CloudWorkspace(createClient(url,key,{auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}),anonymous,{onState});
+ validatePublicConfig(url,key);return new CloudWorkspace(createClient(url,key,{auth:{flowType:'pkce',persistSession:true,storage:sessionStorage,autoRefreshToken:true,detectSessionInUrl:true}}),anonymous,{onState});
 }
 export class CloudWorkspace{
  constructor(client,anonymous,{onState=()=>{}}={}){this.client=client;this.anonymous=anonymous;this.onState=onState;this.epoch=0;this.enabled=false;this.pulling=false;this.timer=null;

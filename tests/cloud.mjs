@@ -1,7 +1,7 @@
 import {harness} from './harness.mjs';const h=await harness();try{
  const p=await h.context.newPage();await p.goto(h.base);await p.waitForSelector('article');
  console.log(await p.evaluate(async()=>{
-  const {RecordStore}=await import('./store.js'),{CloudWorkspace,validatePublicConfig}=await import('./cloud.js');const {canonical}=await import('./model.js');const check=(c,m)=>{if(!c)throw Error(m);};
+  const {RecordStore}=await import('./store.js'),{CloudWorkspace,createCloudWorkspace,validatePublicConfig}=await import('./cloud.js');const {canonical}=await import('./model.js');const check=(c,m)=>{if(!c)throw Error(m);};
   for(const key of ['sb_secret_synthetic','database-password',btoa('header')+'.'+btoa(JSON.stringify({role:'service_role'}))+'.sig']){try{validatePublicConfig('https://example.supabase.co/',key);throw Error('accepted secret');}catch(e){check(e.message.includes('前端只接受'),'key validation');}}
   validatePublicConfig('https://example.supabase.co/','sb_publishable_synthetic');validatePublicConfig('https://example.supabase.co/',btoa('header')+'.'+btoa(JSON.stringify({role:'anon'}))+'.sig');
   const anonymous=await RecordStore.open('test-cloud-anon');await anonymous.initialize({getItem:()=>null});await anonymous.edit('2016-数学-05',{note:'synthetic anonymous'});
@@ -11,7 +11,7 @@ import {harness} from './harness.mjs';const h=await harness();try{
    if(name==='append_wrongbook_ops'){pushes++;for(const op of args.batch){const old=rows.find(r=>r.operation.id===op.id);if(old&&canonical(old.operation)!==canonical(op))throw Error('collision');if(!old)rows.push({commit_seq:rows.length+1,operation:op});}return {data:args.batch.map(op=>op.id)};}
    return {data:rows.filter(r=>r.commit_seq>args.after_seq).slice(0,args.page_size)};
   },channel:()=>({on(){return this;},subscribe(){return this;}}),removeChannel(){}};
-  const w=new CloudWorkspace(client,anonymous);await w.login(location.href);check(pushes===0,'login uploaded anonymously');
+  const w=createCloudWorkspace({createClient:(_url,_key,options)=>{check(options.auth.storage===sessionStorage,'auth used localStorage');return client;},url:'https://example.supabase.co/',key:'sb_publishable_synthetic',anonymous});await w.login(location.href);check(pushes===0,'login uploaded anonymously');
   check(await w.enable({saveBackup:async()=>true,confirmUpload:async()=>false})===false,'declined upload enabled');check(pushes===0,'declined upload sent');
   try{await w.enable({saveBackup:async()=>false,confirmUpload:async()=>true});throw Error('backup skipped');}catch(e){check(e.message.includes('必须先'),'backup not required');}
   await w.enable({saveBackup:async backup=>{check(backup.version===3,'not v3 backup');return true;},confirmUpload:async id=>id===uid});check(pushes===1,'consented upload missing');await w.pull();check(await w.store.cursor()===1,'cursor did not advance');check(!(await w.store.batch()).length,'confirmed outbox not cleared');check((await anonymous.batch()).length===1,'anonymous outbox modified');

@@ -8,7 +8,7 @@
 2. Auth → Providers 配置 GitHub OAuth，回调填写 Supabase 提供的 callback。在 Auth URL configuration 加入正式 Pages 地址 `https://agamma233.github.io/mpa-wrongbook/`，测试回调也显式列出。不要把 GitHub OAuth client secret 放前端。
 3. 只向前端提供项目 HTTPS 根地址和 publishable key（旧项目允许 role=anon 的 legacy JWT）。factory 在创建 SDK client 前校验 key 类型，拒绝 service-role/secret/数据库密码。不要将真实项目管理凭据提交到仓库。
 4. 由接入方显式调用 `createCloudWorkspace({createClient,url,key,anonymous,onState})`，其中 createClient 来自审核固定版本的官方 Supabase JS SDK，anonymous 为当前 RecordStore。`login(redirectTo)` 默认 GitHub，只登录、不上传。
-5. 登录完成后单独调用 `enable({saveBackup,confirmUpload})`：saveBackup 必须把传入的完整 v3 备份实际下载/保存成功后返回 true；confirmUpload 必须明确展示当前账号与匿名记录数量，用户再次确认后才返回 true。示例回调不能预设 true。SDK/确认 UI 未接入生产，因此目前无实际登录上传入口。
+5. 登录完成后单独调用 `enable({saveBackup,confirmUpload})`：saveBackup 必须把传入的完整 v3 备份实际下载/保存成功后返回 true；confirmUpload 必须明确展示当前账号与匿名记录数量，用户再次确认后才返回 true。示例回调不能预设 true。SDK/确认 UI 未接入生产，因此目前无实际登录上传入口。factory 的 OAuth 会话/PKCE 使用当前标签页 sessionStorage，不写入 localStorage；关闭标签页后需重新登录，个人记录仍在各自 IndexedDB。
 6. 启用后 UI 切换使用 workspace.store（用户独立 DB），停止使用匿名 store 编辑。退出调用 logout 并切回匿名 store，销毁页面调用 destroy。不同账号的数据库和 outbox 分离；重新登录仍需备份与明确确认。匿名记录不会因退出而清除。
 7. 可选在 Realtime publication 中只加入 wrongbook_sync_heads；未启用 Realtime 时定时拉取仍工作。客户端只将事件当提示，重连订阅、前台和每5秒兜底拉取。不要把题库、原卷搬入 Supabase。
 
