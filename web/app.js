@@ -1,5 +1,6 @@
 import {due,schedule} from './review.js';
 import {RecordStore} from './store.js';
+import {OutboxSender} from './transport.js';
 const $=id=>document.getElementById(id);let data=[],saved=Object.create(null),view='all';
 function msg(s){$('message').textContent=s;}
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
@@ -72,3 +73,18 @@ try{const response=await fetch('questions.json');if(!response.ok)throw Error(res
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>msg('离线缓存未启用，个人记录仍保存在本机。'));
 
 window.addEventListener('beforeunload',e=>{if(drafts.size){e.preventDefault();e.returnValue='';}});
+
+// Broadcast payloads contain only a sequence hint. Re-read the authoritative DB.
+let checking=false;
+async function checkCommits(){if(!store||store.recovery||checking)return;checking=true;try{await queue;const latest=await store.read();if(latest.meta.seq!==snapshot?.meta.seq){snapshot=latest;saved=latest.rows;refreshControls();}}catch(e){saveStatus('恢复模式 · 已禁止写入');msg('数据库检查失败，请紧急导出：'+e.message);}finally{checking=false;}}
+if(store)store.onSequence=()=>checkCommits();
+window.addEventListener('pageshow',checkCommits);window.addEventListener('online',checkCommits);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkCommits();});
+setInterval(()=>{if(!document.hidden)checkCommits();},5000);
+
+const sender=store?new OutboxSender(store,null,{onState:()=>{$('sync-status').textContent='仅本地 · 云同步未配置；待发送项保留本机';}}):null;
+$('retry-sync').onclick=()=>sender?.retry();
+window.addEventListener('online',()=>sender?.retry());
+window.addEventListener('pageshow',()=>sender?.retry());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sender?.retry();});
+sender?.retry();

@@ -1,17 +1,17 @@
 import {KEY,validateRecords} from './review.js';
-import {canonical,clockValid,tick,union,project,legacyOps,decodeBackup,compatibility} from './model.js';
+import {canonical,clockValid,compare,tick,union,project,legacyOps,decodeBackup,compatibility} from './model.js';
 export const DB_NAME='mpa-wrongbook-v3';
 const stores=['meta','records','operations','outbox','migrations','checkpoints'];
 const request=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 export class RecordStore{
- constructor(db){this.db=db;this.recovery=false;this.pending=new Set();}
+ constructor(db){this.db=db;this.recovery=false;this.pending=new Set();this.channel=typeof BroadcastChannel==='function'?new BroadcastChannel(db.name+':commits'):null;this.channel?.addEventListener('message',e=>{if(Number.isSafeInteger(e.data?.seq))this.onSequence?.(e.data.seq);});}
  static async open(name=DB_NAME){const r=indexedDB.open(name,1);r.onupgradeneeded=()=>{for(const s of stores)r.result.createObjectStore(s);};const db=await request(r);db.onversionchange=()=>db.close();return new RecordStore(db);}
  async transaction(write,fn){
   if(write&&this.recovery)throw Error('恢复模式：禁止覆盖，请先导出并修复原始数据');
   const tx=this.db.transaction(stores,write?'readwrite':'readonly');
   const done=new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error||Error('事务已中止'));tx.onerror=()=>{};});
   const access=Object.fromEntries(stores.map(s=>[s,tx.objectStore(s)]));
-  const run=(async()=>{try{const result=await fn(access,tx);await done;return result;}catch(e){try{tx.abort();}catch{}await done.catch(()=>{});throw e;}})();
+  const run=(async()=>{try{const result=await fn(access,tx);await done;if(write&&result?.meta)this.channel?.postMessage({seq:result.meta.seq});return result;}catch(e){try{tx.abort();}catch{}await done.catch(()=>{});throw e;}})();
   this.pending.add(run);try{return await run;}finally{this.pending.delete(run);}
  }
  async idle(){await Promise.all([...this.pending]);}
@@ -54,5 +54,10 @@ export class RecordStore{
  });}
  async import(raw){const ops=await decodeBackup(raw);return this.transaction(true,async s=>this.commit(s,await this.inspect(s),ops,{checkpoint:true}));}
  async backup(){return this.transaction(false,async s=>({version:3,operations:await request(s.operations.getAll()),recovery:{migrations:await request(s.migrations.getAll()),checkpoints:await request(s.checkpoints.getAll()),meta:await request(s.meta.getAll()),outbox:await request(s.outbox.getAll())}}));}
+ async batch(userId=null,limit=100){return this.transaction(false,async s=>{
+  const queued=await request(s.outbox.getAll());const entries=queued.filter(x=>x.userId===userId);const ops=await Promise.all(entries.map(x=>request(s.operations.get(x.opId))));return ops.sort((a,b)=>compare(a.clock,b.clock)||(a.id<b.id?-1:1)).slice(0,limit);
+ });}
+ async acknowledge(ids,userId=null){return this.transaction(true,async s=>{for(const id of ids){const item=await request(s.outbox.get(id));if(item?.userId===userId)s.outbox.delete(id);}});}
+ close(){this.channel?.close();this.db.close();}
  async exportV2(){const {rows}=await this.read();return {version:2,limitations:'兼容导出不含操作版本、笔记冲突、清空历史、待发送项；完整恢复请使用 v3。',review:compatibility(rows)};}
 }

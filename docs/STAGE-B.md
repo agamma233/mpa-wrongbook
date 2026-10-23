@@ -1,0 +1,13 @@
+# B：页面提交通知与模拟 outbox 验收（2026-10-23）
+
+依赖 A 的 v3 存储。BroadcastChannel 只发 seq 数字，无记录内容；页面收到后重读 IndexedDB。启动、pageshow、回前台、前台每 5 秒补读，事件合并与事务原子性不依赖广播。远端读取只更新未聚焦且无草稿的输入框，不重建卡片，保留光标。
+
+OutboxSender 仅接收显式注入的 transport；应用默认传 null，无任何云请求。模拟实现仅供测试。批次使用持久化 opId，按 HLC 排序；成功确认只删本次已发且归属匹配的 ID，新编辑保留。重复/多发送者由传输端按 opId 幂等。失败、超时、空确认采用带抖动指数退避，停止会取消定时器及请求；启动、回前台、恢复连接和手动重试入口已接入。未配置显示仅本地，不显示已云同步。
+
+本地 Chromium、WebKit：提交提示、真实双标签不同字段、聚焦笔记及光标、丢失广播后 5 秒补漏；发送中再改、重复发送/确认、乱序及部分确认、丢响应、超时、错误确认、多发送者、源站断网重载保留 outbox 与恢复重试均通过。A 的12项Node仍通过。传输为模拟端，没有跨设备联调；页面回前台和 pageshow 的事件挂接已实现，真实系统冻结/恢复未验证。
+
+回滚：关闭 sender 或撤掉页面通知仍可通过定时重读；保留 store/model、旧键、v3 数据库和 outbox，不退回只读 localStorage 的页面。完整 v3 可导入到干净浏览器；遇失败先紧急导出。
+
+独立D的WebKit回归暴露旧SW未显式预缓存新增模块的竞争，B已将model/store/transport加入必要壳缓存，并用waitUntil等待按需缓存写入；完整字体/内容摘要/安全静态允许列表仍由独立C负责。不是忽略失败检查。
+
+CI在两个Ubuntu镜像安装步骤多次停滞超过15分钟，改用官方Playwright 1.62.1容器（固定registry验证的SHA-256），包含浏览器与系统依赖；npm仍安装锁定版本，全部validate/audit/凭据扫描/Python/Node/Chromium/WebKit/fixture检查保留。仅测试job运行在容器，无自建服务，不改Pages部署权限。来源：https://playwright.dev/docs/docker 。
