@@ -46,6 +46,8 @@ jobs:
       - run: BROWSER_ENGINE=webkit node tests/transport.mjs
       - run: node tests/cloud.mjs
       - run: BROWSER_ENGINE=webkit node tests/cloud.mjs
+      - run: node tests/pwa.mjs
+      - run: BROWSER_ENGINE=webkit node tests/pwa.mjs
       - run: python scripts/verify_fixture.py
       - uses: actions/upload-pages-artifact@v3
         with:

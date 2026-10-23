@@ -27,3 +27,7 @@ test('legacy stable identifiers, historical backup, v3 roundtrip and hostile sch
  assert.equal(project(await decodeBackup({version:'2026-10-22-questions',review:rows}))[question].status,'复习中');
  await assert.rejects(()=>decodeBackup({version:3,operations:[{...ops[0],extra:1}],recovery:{}}));
 });
+
+test('simulated delivery treats reordered JSON keys as the same immutable operation',async()=>{
+ const {SimulatedTransport}=await import('../web/transport.js');const transport=new SimulatedTransport(),a=op('delivered','note','文本');await transport.send([a]);const reordered=Object.fromEntries(Object.entries(a).reverse());assert.deepEqual(await transport.send([reordered]),['delivered']);assert.equal(transport.operations.size,1);await assert.rejects(()=>transport.send([{...a,value:'changed'}]));
+});

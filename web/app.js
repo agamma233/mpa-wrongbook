@@ -75,7 +75,15 @@ for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>{view=b.da
 try{store=await RecordStore.open();snapshot=await store.initialize();saved=snapshot.rows;saveStatus('已保存本机 · 云同步未配置');}catch(error){saveStatus('恢复模式 · 已禁止写入');msg('本机记录读取失败，原始数据未修改，请紧急导出：'+error.message);}
 try{const response=await fetch('questions.json');if(!response.ok)throw Error(response.status);data=await response.json();for(const [id,values] of [['year',[...new Set(data.map(d=>d.year))]],['topic',[...new Set(data.map(d=>d.topic))]]])for(const value of values)$(id).append(el('option',value));render();}catch(error){msg('题库加载失败，请检查构建产物或网络：'+error.message);}
 
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>msg('离线缓存未启用，个人记录仍保存在本机。'));
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+  const waiting=()=>{if(reg.waiting){$('pwa-update').hidden=false;$('update-message').textContent='更新不会自动刷新页面；请先完成输入。';}};
+  waiting();reg.addEventListener('updatefound',()=>{const worker=reg.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed'){waiting();if(!navigator.serviceWorker.controller)$('offline-status').textContent='离线资源已准备完成';}if(worker.state==='redundant')$('offline-status').textContent='新版离线资源准备失败，保留旧版本，请联网重试';});});
+  navigator.serviceWorker.ready.then(()=>$('offline-status').textContent='离线资源已准备完成');
+  $('activate-update').onclick=async()=>{await queue;if(drafts.size){$('update-message').textContent='仍有未保存草稿，请先保存或紧急导出。';return;}await store?.idle();reg.waiting?.postMessage({type:'ACTIVATE_AFTER_LOCAL_COMMIT'});$('update-message').textContent='更新已请求。完成后可自行刷新，当前输入不会自动清除。';};
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{$('offline-status').textContent='离线版本已就绪；需要时手动刷新页面';});
+ }).catch(()=>{$('offline-status').textContent='离线资源未就绪，请联网重试；个人记录仍保存在本机';});
+}else $('offline-status').textContent='此浏览器不支持离线安装';
 
 window.addEventListener('beforeunload',e=>{if(drafts.size){e.preventDefault();e.returnValue='';}});
 
