@@ -34,6 +34,8 @@ class BuildTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp)
    for folder in ('content','assets','web'):shutil.copytree(original/folder,root/folder)
+   for file in (root/'content/questions').glob('*.md'):
+    row=m.read(file);row['image_publication']='未授权';file.write_text('---\n'+m.yaml.safe_dump(row,allow_unicode=True)+'---\n')
    d=copy.deepcopy(m.load()[0]);d.update(id='2026-数学-01',year='2026',subject='数学',q=1,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
    (root/'content/questions/2026-数学-01.md').write_text('---\n'+m.yaml.safe_dump(d,allow_unicode=True)+'---\n')
    try:
