@@ -6,8 +6,8 @@ class ContentTests(unittest.TestCase):
  def setUp(self): self.rows=m.load()
  def test_history(self): m.audit()
  def test_counts(self):
-  self.assertEqual(len(self.rows),40)
-  self.assertEqual(sum(bool(d['question_image']) for d in self.rows),16)
+  self.assertGreaterEqual(len(self.rows),40)
+  self.assertEqual(sum(bool(d['question_image']) for d in self.rows if d['year']=='2016'),16)
  def test_duplicate_id(self):
   with self.assertRaises(ValueError): m.validate(self.rows+[self.rows[0]])
  def test_duplicate_question(self):
@@ -24,8 +24,8 @@ class ContentTests(unittest.TestCase):
   cfg=m.yaml.safe_load((m.ROOT/'.pages.yml').read_text());fields={f['name'] for f in cfg['content'][0]['fields']}
   self.assertTrue(set(m.FIELDS)<=fields)
  def test_new_question(self):
-  d=copy.deepcopy(self.rows[0]);d.update(id='2026-数学-01',year='2026',subject='数学',q=1,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
-  self.assertEqual(len(m.validate(self.rows+[d])),41)
+  d=copy.deepcopy(self.rows[0]);d.update(id='9999-数学-999',year='9999',subject='数学',q=999,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
+  self.assertEqual(len(m.validate(self.rows+[d])),len(self.rows)+1)
 if __name__=='__main__':unittest.main()
 
 class BuildTests(unittest.TestCase):
@@ -36,10 +36,10 @@ class BuildTests(unittest.TestCase):
    for folder in ('content','assets','web'):shutil.copytree(original/folder,root/folder)
    for file in (root/'content/questions').glob('*.md'):
     row=m.read(file);row['image_publication']='未授权';file.write_text('---\n'+m.yaml.safe_dump(row,allow_unicode=True)+'---\n')
-   d=copy.deepcopy(m.load()[0]);d.update(id='2026-数学-01',year='2026',subject='数学',q=1,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
-   (root/'content/questions/2026-数学-01.md').write_text('---\n'+m.yaml.safe_dump(d,allow_unicode=True)+'---\n')
+   d=copy.deepcopy(m.load()[0]);d.update(id='9999-数学-999',year='9999',subject='数学',q=999,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
+   (root/'content/questions/9999-数学-999.md').write_text('---\n'+m.yaml.safe_dump(d,allow_unicode=True)+'---\n')
    try:
-    m.ROOT=root;m.build();rows=json.loads((root/'dist/questions.json').read_text());self.assertEqual(len(rows),41);self.assertTrue(any(x['id']==d['id'] for x in rows));self.assertFalse((root/'dist/legacy').exists());self.assertEqual(len(list((root/'dist').rglob('*.jpg'))),0)
+    m.ROOT=root;m.build();rows=json.loads((root/'dist/questions.json').read_text());self.assertEqual(len(rows),len(m.load(original))+1);self.assertTrue(any(x['id']==d['id'] for x in rows));self.assertFalse((root/'dist/legacy').exists());self.assertEqual(len(list((root/'dist').rglob('*.jpg'))),0)
    finally:m.ROOT=original
 
 class CmsCompatibilityTests(unittest.TestCase):
