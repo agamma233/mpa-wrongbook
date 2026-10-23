@@ -36,7 +36,7 @@ python3 scripts/manage.py audit
 
 ## 初次部署与 CMS
 
-尚未创建远程仓库或发布。推荐先创建私有 `mpa-wrongbook` 保存含原卷的完整审计资料。GitHub Pages 对私有仓库的可用性取决于账户计划；若使用公共仓库，必须先解决 legacy 内嵌截图及独立图片的公开授权，不能仅隐藏网页图片。
+远程私有仓库为 `agamma233/mpa-wrongbook`，尚未合并或公开发布。完整审计资料仅推送至私有仓库。GitHub Pages 对私有仓库的可用性取决于账户计划；若使用公共仓库，必须先解决 legacy 内嵌截图及独立图片的公开授权，不能仅隐藏网页图片。
 
 Pages 设置选择 GitHub Actions，确认后合并至 main 自动测试构建并部署 dist；PR 仅测试，不发布。Pages CMS 使用 GitHub 登录并授权该仓库；打开“错题管理”录入题目，图片上传后填写许可状态，保存提交触发 Actions。配置完成仍须实测登录、手机新增与编辑，不能以 YAML 存在代替验收。
 
@@ -46,4 +46,28 @@ Pages 设置选择 GitHub Actions，确认后合并至 main 自动测试构建�
 
 ## 当前验收状态
 
-已完成历史迁移和逐字段、图片字节核对。交互、CMS 实际登录、LaTeX、测试、远程提交与部署仍待验证或完善，未声称已经上线。
+已完成历史迁移和逐字段、图片字节核对。本地 9 项 Python 测试、7 项记录测试通过；Chrome 验证手机/平板/桌面、子路径无404、作答、公式、XSS、记录恢复、旧记录迁移和离线重载。CMS 实际登录、GitHub Actions 云端运行与部署待验证，未声称已经上线。
+
+
+## 测试与 CMS 日常操作
+
+```sh
+python3 -m unittest discover -s tests
+npm install --ignore-scripts
+npm test
+npx playwright install chromium
+python3 scripts/manage.py build
+npm run test:browser
+```
+
+配置依据：[Pages CMS collection](https://pagescms.org/docs/configuration/content/)、[媒体](https://pagescms.org/docs/configuration/media/)。`.pages.yml` 使用有效 YAML 的 JSON 表达；保存后 CMS 可输出常规 YAML，两种均支持。
+
+在手机访问 https://app.pagescms.org ，登录 GitHub，选择该私有仓库和工作分支。在“错题管理”填写 ID、年份（文本）、科目、题号和必填内容；选项不全则全部留空并在状态写待补原卷。答案未知留空并写待核实。填写缺少内容的其他文本字段时用空字符串，不用 null。选择完整题目后才能自动判断作答。编辑历史答案前必须确认来源及用户批准，audit 会检测历史变动。
+
+批量 JSON 例（演示字段，不属于历史题库）：
+
+```json
+[{"id":"2026-数学-01","year":"2026","subject":"数学","q":1,"title":"导入演示","topic":"算术","priority":"常规","question_text":"演示：1+1=?","options":{"A":"1","B":"2","C":"3","D":"4","E":"5"},"wrong":"A","correct":"B","brief":"演示","explain":"1+1=2","lesson":"核对运算","source":"用户确认的导入演示","confidence":"演示","question_status":"已核实","question_image":"","image_publication":"未授权"}]
+```
+
+将此例仅用于测试分支，不能作为真实错题混入历史题库。题库备份包括 content、assets、legacy；浏览器复习记录需另行导出。离线可用需要先联网完整访问一次，公式字体和图片需访问后缓存。

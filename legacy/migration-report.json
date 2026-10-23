@@ -1,0 +1,7 @@
+{
+  "original_sha256": "27eb463d1273d3ebf57d7bab0a8c266c38dc6d664fe20fb5006c3562ebafe7a5",
+  "questions": 40,
+  "images": 16,
+  "missing_images": 24,
+  "note": "JSON is a valid YAML 1.2 frontmatter subset. All original non-image fields retained. Images not authorized for public release."
+}
