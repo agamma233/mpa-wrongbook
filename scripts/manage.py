@@ -94,6 +94,20 @@ def build(local=False):
         elif img: d['question_image']=''; d['image_withheld']=True
     (out/'questions.json').write_text(json.dumps(rows,ensure_ascii=False),encoding='utf-8')
     (out/'.nojekyll').touch()
+    required=[]; optional=[]
+    for file in sorted(out.rglob('*')):
+        if not file.is_file() or file.name in ('sw.js', '.nojekyll'): continue
+        rel=file.relative_to(out).as_posix()
+        if rel.startswith('assets/questions/'):
+            optional.append(rel)
+        else:
+            required.append({'path':rel, 'sha256':hashlib.sha256(file.read_bytes()).hexdigest()})
+    content=json.dumps({'required':required, 'optional':optional},sort_keys=True,ensure_ascii=False)
+    manifest={'version':hashlib.sha256(content.encode()).hexdigest()[:24], 'required':required, 'optional':optional}
+    sw=(out/'sw.js').read_text()
+    manifest['version']=hashlib.sha256((content+sw).encode()).hexdigest()[:24]
+    (out/'sw.js').write_text(sw.replace('__PRECACHE__',json.dumps(manifest,ensure_ascii=False)),encoding='utf-8')
+    (out/'build-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
     print(f'构建完成: {len(rows)} 题；'+('本地含原图，禁止公开上传此 dist' if local else '公开模式，仅发布已授权图片'))
 
 def main():
