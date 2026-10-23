@@ -4,8 +4,8 @@ export const DB_NAME='mpa-wrongbook-v3';
 const stores=['meta','records','operations','outbox','migrations','checkpoints'];
 const request=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 export class RecordStore{
- constructor(db){this.db=db;this.recovery=false;this.pending=new Set();this.channel=typeof BroadcastChannel==='function'?new BroadcastChannel(db.name+':commits'):null;this.channel?.addEventListener('message',e=>{if(Number.isSafeInteger(e.data?.seq))this.onSequence?.(e.data.seq);});}
- static async open(name=DB_NAME){const r=indexedDB.open(name,1);r.onupgradeneeded=()=>{for(const s of stores)r.result.createObjectStore(s);};const db=await request(r);db.onversionchange=()=>db.close();return new RecordStore(db);}
+ constructor(db,userId=null){this.userId=userId;this.db=db;this.recovery=false;this.pending=new Set();this.channel=typeof BroadcastChannel==='function'?new BroadcastChannel(db.name+':commits'):null;this.channel?.addEventListener('message',e=>{if(Number.isSafeInteger(e.data?.seq))this.onSequence?.(e.data.seq);});}
+ static async open(name=DB_NAME,userId=null){const r=indexedDB.open(name,1);r.onupgradeneeded=()=>{for(const s of stores)r.result.createObjectStore(s);};const db=await request(r);db.onversionchange=()=>db.close();return new RecordStore(db,userId);}
  async transaction(write,fn){
   if(write&&this.recovery)throw Error('恢复模式：禁止覆盖，请先导出并修复原始数据');
   const tx=this.db.transaction(stores,write?'readwrite':'readonly');
@@ -17,20 +17,21 @@ export class RecordStore{
  async idle(){await Promise.all([...this.pending]);}
  async inspect(s){
   const [meta,operations,records,outbox]=await Promise.all([request(s.meta.get('state')),request(s.operations.getAll()),request(s.records.get('all')),request(s.outbox.getAll())]);
-  const merged=union(operations),rows=project(merged);
-  if(meta){if(!clockValid(meta.clock)||!Number.isSafeInteger(meta.seq)||meta.seq<0||canonical(rows)!==canonical(records)||outbox.some(v=>!merged.some(op=>op.id===v.opId)))throw Error('数据库一致性检查失败');}
+  const merged=union(operations),rows=project(merged),ids=new Set(merged.map(op=>op.id));
+  if(meta){if((meta.owner??null)!==this.userId||!clockValid(meta.clock)||!Number.isSafeInteger(meta.seq)||meta.seq<1||merged.some(op=>compare(meta.clock,op.clock)<=0)||canonical(rows)!==canonical(records)||outbox.some(v=>v.userId!==this.userId||!ids.has(v.opId)))throw Error('数据库一致性检查失败');}
   else if(merged.length||records||outbox.length)throw Error('数据库元数据缺失');
   return {meta,operations:merged,rows};
  }
  async read(){try{return await this.transaction(false,s=>this.inspect(s));}catch(e){this.recovery=true;throw e;}}
- async commit(s,current,incoming,{checkpoint,marker,raw}={}){
+ async commit(s,current,incoming,{checkpoint,marker,raw,remote=false}={}){
   const operations=union(current.operations,incoming);const actorId=current.meta?.clock.actorId||crypto.randomUUID();
   let clock=current.meta?.clock||{wallMs:0,counter:0,actorId};for(const op of incoming)clock=tick(clock,actorId,Date.now(),op.clock);
-  const fresh=operations.filter(op=>!current.operations.some(old=>old.id===op.id));
+  const known=new Set(current.operations.map(op=>op.id));const fresh=operations.filter(op=>!known.has(op.id));
+  if(current.meta&&!fresh.length&&!marker)return current;
   if(checkpoint)s.checkpoints.put({version:3,operations:current.operations,recovery:{}},crypto.randomUUID());
-  for(const op of fresh){s.operations.add(op,op.id);s.outbox.add({opId:op.id,userId:null},op.id);}
-  const meta={clock,seq:(current.meta?.seq||0)+1};s.records.put(project(operations),'all');s.meta.put(meta,'state');
-  if(marker)s.migrations.put({raw,completed:true},marker);
+  for(const op of fresh){s.operations.add(op,op.id);if(!remote)s.outbox.add({opId:op.id,userId:this.userId},op.id);}
+  const seq=(current.meta?.seq||0)+1;if(!Number.isSafeInteger(seq))throw Error('提交序号超出范围');const meta={clock,owner:this.userId,seq};s.records.put(project(operations),'all');s.meta.put(meta,'state');
+  if(marker)s.migrations.put({marker,raw,completed:true},marker);
   return {meta,operations,rows:project(operations)};
  }
  async initialize(storage=localStorage){
@@ -54,10 +55,20 @@ export class RecordStore{
  });}
  async import(raw){const ops=await decodeBackup(raw);return this.transaction(true,async s=>this.commit(s,await this.inspect(s),ops,{checkpoint:true}));}
  async backup(){return this.transaction(false,async s=>({version:3,operations:await request(s.operations.getAll()),recovery:{migrations:await request(s.migrations.getAll()),checkpoints:await request(s.checkpoints.getAll()),meta:await request(s.meta.getAll()),outbox:await request(s.outbox.getAll())}}));}
- async batch(userId=null,limit=100){return this.transaction(false,async s=>{
+ async batch(userId=this.userId,limit=100){return this.transaction(false,async s=>{
   const queued=await request(s.outbox.getAll());const entries=queued.filter(x=>x.userId===userId);const ops=await Promise.all(entries.map(x=>request(s.operations.get(x.opId))));return ops.sort((a,b)=>compare(a.clock,b.clock)||(a.id<b.id?-1:1)).slice(0,limit);
  });}
- async acknowledge(ids,userId=null){return this.transaction(true,async s=>{for(const id of ids){const item=await request(s.outbox.get(id));if(item?.userId===userId)s.outbox.delete(id);}});}
+ async acknowledge(ids,userId=this.userId){return this.transaction(true,async s=>{for(const id of ids){const item=await request(s.outbox.get(id));if(item?.userId===userId)s.outbox.delete(id);}});}
  close(){this.channel?.close();this.db.close();}
+ async cursor(){return this.transaction(false,async s=>await request(s.meta.get('remote-cursor'))||0);}
+ async applyRemote(page){return this.transaction(true,async s=>{
+  let cursor=await request(s.meta.get('remote-cursor'))||0,previous=0;const current=await this.inspect(s),ops=[];
+  for(const row of page){
+   if(!Number.isSafeInteger(row.commit_seq)||row.commit_seq<=previous)throw Error('拉取提交序号无效');previous=row.commit_seq;
+   if(row.commit_seq<=cursor){const old=current.operations.find(op=>op.id===row.operation.id);if(!old||canonical(old)!==canonical(row.operation))throw Error('已应用序号内容不一致');continue;}
+   cursor=row.commit_seq;ops.push(row.operation);
+  }
+  const result=ops.length?await this.commit(s,current,ops,{remote:true}):current;s.meta.put(cursor,'remote-cursor');return result;
+ });}
  async exportV2(){const {rows}=await this.read();return {version:2,limitations:'兼容导出不含操作版本、笔记冲突、清空历史、待发送项；完整恢复请使用 v3。',review:compatibility(rows)};}
 }

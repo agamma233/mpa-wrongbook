@@ -1,3 +1,4 @@
+import {canonical} from './model.js';
 // Only an injected transport can send. The application defaults to local-only.
 export class OutboxSender{
  constructor(store,transport,{userId=null,timeout=15000,random=Math.random,onState=()=>{}}={}){Object.assign(this,{store,transport,userId,timeout,random,onState});this.running=false;this.stopped=false;this.failures=0;this.timer=null;}
@@ -21,5 +22,5 @@ export class OutboxSender{
 }
 export class SimulatedTransport{
  constructor(){this.operations=new Map();}
- async send(batch){for(const op of batch){const old=this.operations.get(op.id);if(old&&JSON.stringify(old)!==JSON.stringify(op))throw Error('同 ID 异内容');this.operations.set(op.id,structuredClone(op));}return batch.map(op=>op.id);}
+ async send(batch){for(const op of batch){const old=this.operations.get(op.id);if(old&&canonical(old)!==canonical(op))throw Error('同 ID 异内容');this.operations.set(op.id,structuredClone(op));}return batch.map(op=>op.id);}
 }

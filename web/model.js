@@ -28,7 +28,7 @@ export function union(...sets){
   if(op.field==='attempt'){const key=op.question+'\0'+op.value.id;if(events.has(key)&&events.get(key)!==canonical(op.value))throw Error('同一答题 ID 内容不同');events.set(key,canonical(op.value));}
   byId.set(op.id,op);
  }
- const result=[...byId.values()].sort((a,b)=>a.id.localeCompare(b.id));
+ const result=[...byId.values()].sort((a,b)=>(a.id<b.id?-1:a.id>b.id?1:0));
  for(const op of result)for(const id of op.parents){const parent=byId.get(id);if(!parent||parent.field!=='note'||parent.question!==op.question||compare(parent.clock,op.clock)>=0)throw Error('笔记父版本缺失或顺序无效');}
  return result;
 }

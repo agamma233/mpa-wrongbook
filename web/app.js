@@ -46,10 +46,10 @@ function card(d){
   if(!choice){msg('请先选择 A—E 选项');return;}
   const known=d.correct&&d.options[d.correct];const correct=known?choice===d.correct:null;const attempt={id:crypto.randomUUID(),at:Date.now(),choice,correct};update(d.id,{attempt,status:correct?'复习中':'未掌握',nextReview:schedule(correct?'复习中':'未掌握')}).catch(()=>{});result.textContent=`本次选择 ${choice}：${correct===null?'答案待核实':correct?'与历史答案一致':'与历史答案不同'}`;result.className=correct?'correct':'incorrect';answer.open=true;
  }));a.append(answer);
- const controls=el('div',undefined,'review');const status=el('select');status.setAttribute('aria-label',d.id+' 掌握状态');for(const s of ['未掌握','复习中','已掌握']){const o=el('option',s);o.selected=s===(r.status||'未掌握');status.append(o);}status.onchange=()=>update(d.id,{status:status.value,nextReview:schedule(status.value)}).catch(()=>{});
+ const controls=el('div',undefined,'review');const status=el('select');status.setAttribute('aria-label',d.id+' 掌握状态');for(const s of ['未掌握','复习中','已掌握']){const o=el('option',s);o.selected=s===(r.status||'未掌握');status.append(o);}status.onblur=refreshControls;status.onchange=()=>update(d.id,{status:status.value,nextReview:schedule(status.value)}).catch(()=>{});
  const favorite=button(r.favorite?'取消收藏':'收藏错题',()=>{update(d.id,{favorite:!(drafts.get(d.id)?.favorite??saved[d.id]?.favorite)}).then(refreshControls).catch(()=>{});});favorite.dataset.favorite='';controls.append(status,favorite);
- const cause=el('input');cause.value=r.cause||'';cause.placeholder='本次错因';cause.setAttribute('aria-label',d.id+' 错因');cause.oninput=()=>update(d.id,{cause:cause.value}).catch(()=>{});controls.append(cause);a.append(controls);
- const note=el('textarea');note.value=r.note||'';note.placeholder='个人复习笔记，仅保存本机，不上传题库';note.setAttribute('aria-label',d.id+' 个人笔记');note.onfocus=()=>noteParents.set(d.id,{parents:saved[d.id]?.noteHeads||[]});note.oninput=()=>update(d.id,{note:note.value}).catch(()=>{});a.append(note);const conflicts=el('pre');conflicts.dataset.conflicts='';conflicts.textContent=(r.noteConflicts||[]).length>1?'笔记存在并发版本（全部保留）：\n'+r.noteConflicts.map(v=>v.text||'（已清空）').join('\n——\n'):'';a.append(conflicts);a.append(button('以当前笔记解决冲突',()=>{noteParents.set(d.id,{parents:saved[d.id]?.noteHeads||[]});return update(d.id,{note:note.value}).then(refreshControls).catch(()=>{});}));return a;
+ const cause=el('input');cause.value=r.cause||'';cause.placeholder='本次错因';cause.setAttribute('aria-label',d.id+' 错因');cause.oninput=()=>update(d.id,{cause:cause.value}).catch(()=>{});cause.onblur=refreshControls;controls.append(cause);a.append(controls);
+ const note=el('textarea');note.value=r.note||'';note.placeholder='个人复习笔记，仅保存本机，不上传题库';note.setAttribute('aria-label',d.id+' 个人笔记');note.onfocus=()=>{if(!('note'in(drafts.get(d.id)||{}))){note.value=saved[d.id]?.note||'';noteParents.set(d.id,{parents:(saved[d.id]?.noteHeads||[]).slice(-1)});}};note.oninput=()=>update(d.id,{note:note.value}).catch(()=>{});a.append(note);const conflicts=el('pre');conflicts.dataset.conflicts='';conflicts.textContent=(r.noteConflicts||[]).length>1?'笔记存在并发版本（全部保留）：\n'+r.noteConflicts.map(v=>v.text||'（已清空）').join('\n——\n'):'';a.append(conflicts);a.append(button('以当前笔记解决冲突',()=>{noteParents.set(d.id,{parents:saved[d.id]?.noteHeads||[]});return update(d.id,{note:note.value}).then(refreshControls).catch(()=>{});}));return a;
 }
 function render(){
  const term=$('search').value.trim().toLowerCase();let rows=data.filter(d=>(!$('year').value||d.year===$('year').value)&&(!$('subject').value||d.subject===$('subject').value)&&(!$('topic').value||d.topic===$('topic').value)&&(!term||JSON.stringify(d).toLowerCase().includes(term)));
@@ -63,7 +63,12 @@ function render(){
 }
 $('export').onclick=async()=>{try{await queue;download(await store.backup(),'MPA-v3.review.json');}catch(e){msg('导出失败：'+e.message);}};
 $('export-v2').onclick=async()=>{try{await queue;download(await store.exportV2(),'MPA-v2-limited.review.json');}catch(e){msg('导出失败：'+e.message);}};
-$('emergency').onclick=async()=>{let database,error;try{database=await store?.backup();}catch(e){error=e.message;}download({format:'mpa-emergency-drafts',drafts:Object.fromEntries(drafts),database,error,legacy:{v1:localStorage.getItem('mpa_wrongbook_review_v1'),v2:localStorage.getItem('mpa_wrongbook_review_v2')}},'MPA-emergency.review.json');};
+$('emergency').onclick=async()=>{
+ let database,error;const legacy={};try{database=await store?.backup();}catch(e){error=e.message;}
+ for(const key of ['mpa_wrongbook_review_v1','mpa_wrongbook_review_v2'])try{legacy[key]=localStorage.getItem(key);}catch(e){legacy[key]={readError:e.message};}
+ const value={format:'mpa-emergency-drafts',drafts:Object.fromEntries(drafts),database,error,legacy};
+ try{download(value,'MPA-emergency.review.json');}catch(e){download({...value,database:undefined,error:'原始数据库无法序列化：'+e.message},'MPA-emergency.review.json');}
+};
 $('import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>20000000)throw Error('文件超过 20 MB');const text=await file.text();await queue;snapshot=await store.import(text);saved=snapshot.rows;refreshControls();msg('已合并复习记录；不同笔记版本全部保留，重复答题已去重。');saveStatus('已保存本机 · 云同步未配置');}catch(error){msg('导入失败，现有记录未改变：'+error.message);}finally{e.target.value='';}};
 for(const id of ['search','year','subject','topic'])$(id).addEventListener(id==='search'?'input':'change',render);
 for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>{view=b.dataset.view;render();};
