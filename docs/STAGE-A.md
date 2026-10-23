@@ -9,3 +9,5 @@
 回滚：优先关闭传输（本阶段无网络传输）或恢复旧 UI 布局，但必须保留 v3 store/model 适配器及数据库名。不得部署只读旧 localStorage 的旧 app.js。保留旧键、IndexedDB、outbox 和备份；修复损坏前先紧急导出，不提供一键清库。完整 v3 可在干净浏览器中导入恢复；紧急导出中的 drafts 需人工检查后补写。
 
 未验证：真实 iPhone Safari、主屏幕、MacBook 双设备、真实磁盘配额。B 的页面通知/补漏与传输模拟、C 的完整离线安装将在独立 PR 验收。
+
+补充：WebKit 本地记录/并发/回滚及完整浏览器回归通过。最初 setOffline(true) 导致 WebKit 导航内部错误，与上游 https://github.com/microsoft/playwright/issues/42775 一致。离线回归改为关闭测试服务器连接，所有浏览器都须成功导航并重新显示题目；不捕获并忽略导航失败，不将旧 DOM 算通过。这是源站断网模拟，真实 iPhone 飞行模式仍未验证。
