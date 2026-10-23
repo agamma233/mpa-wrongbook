@@ -12,6 +12,12 @@ concurrency:
 jobs:
   test-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Official Playwright 1.62.1 image: browsers + signed distro dependencies,
+    # pinned to its verified multi-platform digest; avoid flaky runner apt mirrors.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --shm-size=1gb
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,7 +34,7 @@ jobs:
       - run: node --test tests/*.test.js
       - run: python scripts/manage.py build
       - run: npm install --ignore-scripts
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install chromium webkit
       - run: npm run test:browser
       - run: BROWSER_ENGINE=webkit npm run test:browser
       - run: node tests/reliability.mjs
