@@ -11,8 +11,10 @@
 | 真实配额耗尽/浏览器回收 | 未验证 | 自动化仅注入 QuotaExceededError，不等于物理空间耗尽 |
 | 真实 Supabase PostgreSQL RLS/RPC | 通过（合成身份） | Dashboard 执行 verify-transaction.sql；anon 拒绝、两个数据库身份隔离、幂等/碰撞、fixture 回滚；Realtime publication 已启用 |
 | 真实 Supabase 匿名 HTTP | 通过 | 真实 Chrome 请求两张表及 append/pull RPC 均 401；线上函数体与仓库一致 |
-| 真实 GitHub OAuth（MacBook Chrome） | 登录回调通过 | 用户明确确认只读邮箱授权后，PKCE 回到 Pages 子路径并显示账号；登录后仍未允许上传；iPhone/Safari 尚未验证 |
-| 真实 Supabase 已登录 API/Realtime | 未验证 | 两个真实 GitHub 账号、HTTP/WS、退出切号、断网补拉、分页；数据库角色测试不代替这些项目 |
+| 真实 GitHub OAuth（MacBook Chrome） | 通过 | macOS 27.0.1 / Chrome 156.0.8078.47；用户确认只读邮箱授权，PKCE 回 Pages 子路径；刷新及关闭标签再打开恢复同账号；登录不自动许可上传 |
+| 真实 Supabase 已登录 RPC / 自动拉取（Chrome） | 通过（合成记录） | 首次上传4个操作；独立云端新增1个操作后自动拉回；断网重载/恢复自动补发；最终v3包含7个操作、outbox=0 |
+| 真实 Realtime 独立断线 / 两个 OAuth 账号 | 未完整验证 | 真实云变更已自动拉回，但未单独阻断 WS 以区分通知与轮询；两个合成数据库角色不等于两个真实 GitHub 登录 |
+| 同一 Mac Safari 独立浏览器 | 待用户登录 | Safari 27.0.1 已加载网站，GitHub 登录无现成会话；不读取或代填用户密码。此环境仍不等于 iPhone |
 | PostgreSQL 多连接竞争 | 未验证 | RPC持锁延迟提交时第二写入等待；提交后逐页不漏操作 |
 
 ## iPhone Safari 与主屏幕
@@ -28,3 +30,16 @@
 如接入 D：真实测试项目中先验收 RLS/RPC，再分别登录同一测试账号；备份及再次确认前不发送匿名记录。测试断网、关闭、前台恢复、丢响应、Realtime断开、分页、退出和切换测试账号。检查账号B看不到A数据，A的未发送项退出后仍保留，不向B发送。
 
 记录实际时间、版本/commit、设备、步骤、结果与失败现象。发现失败先导出，不清库、不回退到只读旧localStorage的页面。
+
+## 本次真实项目与 Chrome 操作证据（2026-10-23）
+
+生产代码：PR [#6](https://github.com/agamma233/mpa-wrongbook/pull/6) 与 [#7](https://github.com/agamma233/mpa-wrongbook/pull/7)。最终功能提交 `73c59d8` 的 [Actions 39957648959](https://github.com/agamma233/mpa-wrongbook/actions/runs/39957648959) 全部测试与 Pages 部署成功；线上公开内容摘要 `499a5a9edd0e5fee095428e8`。
+
+1. Chrome 完成真实 GitHub OAuth PKCE，回到 `/mpa-wrongbook/`，显示正确账号；刷新仍登录且未许可上传。匿名库未复制到账号库。
+2. 仅在账号库输入明确标为“合成验收”的笔记、答题及掌握状态，下载完整 v3（4个操作、4个待发送），选择已保存文件读回校验后，明确勾选上传确认。页面显示与云端核对一致；真实数据库查询4个操作、4个唯一ID、提交序号4。
+3. 在 Dashboard 以该用户的数据库角色追加1条合成错因操作，网站自动显示该内容。此步骤是独立服务端写入，**不是另一台设备**。
+4. Chrome DevTools Network 显式选 Offline，仅隔离该测试标签页网络。离线改笔记、掌握状态，提示“已保存本机”和独立的云失败状态；重载仍保留同账号与新记录。
+5. 恢复 No throttling，无手动重新上传，自动回到“已与云端核对一致”。完整 v3 导出7个操作、0个待发送。关闭该标签并重新打开，仍恢复同账号及自动同步。网络模拟和开发者工具均已恢复/关闭。
+6. 真实 PWA 更新按提示等待本机事务后激活，用户手动刷新，合成笔记、答题和状态保留。首次准备离线资源需等待网络下载完成，不强制刷新。
+
+本次保存的备份在本机 Downloads，截图在忽略的 `test-results/`；不提交账号记录、备份、会话令牌、邮箱或服务端密钥。合成验收操作保留在该账号历史中，不作自动清理或回收。真实 iPhone、主屏幕、MacBook与iPhone双设备、第二个真实 GitHub 账号、服务端多连接锁竞争仍未完成，不能以本表的模拟或单机结果替代。
