@@ -25,11 +25,14 @@ jobs:
       - run: python scripts/manage.py validate
       - run: python scripts/manage.py audit
       - run: python -m unittest discover -s tests
-      - run: node --test tests/review.test.js
+      - run: node --test tests/*.test.js
       - run: python scripts/manage.py build
       - run: npm install --ignore-scripts
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:browser
+      - run: BROWSER_ENGINE=webkit npm run test:browser
+      - run: node tests/reliability.mjs
+      - run: BROWSER_ENGINE=webkit node tests/reliability.mjs
       - run: python scripts/verify_fixture.py
       - uses: actions/upload-pages-artifact@v3
         with:
