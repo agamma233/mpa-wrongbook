@@ -5,12 +5,13 @@ import {harness} from './harness.mjs';const h=await harness();try{
   for(const key of ['sb_secret_synthetic','database-password',btoa('header')+'.'+btoa(JSON.stringify({role:'service_role'}))+'.sig']){try{validatePublicConfig('https://example.supabase.co/',key);throw Error('accepted secret');}catch(e){check(e.message.includes('前端只接受'),'key validation');}}
   validatePublicConfig('https://example.supabase.co/','sb_publishable_synthetic');validatePublicConfig('https://example.supabase.co/',btoa('header')+'.'+btoa(JSON.stringify({role:'anon'}))+'.sig');
   const anonymous=await RecordStore.open('test-cloud-anon');await anonymous.initialize({getItem:()=>null});await anonymous.edit('2016-数学-05',{note:'synthetic anonymous'});
-  const uid='11111111-1111-4111-8111-111111111111',uid2='22222222-2222-4222-8222-222222222222';let session={user:{id:uid}},authChange,pushes=0;const users=new Map();
-  const client={auth:{onAuthStateChange:fn=>{authChange=fn;return {data:{subscription:{unsubscribe(){}}}};},getSession:async()=>({data:{session}}),signInWithOAuth:async opts=>{check(opts.provider==='github','not GitHub OAuth');return{};},signOut:async()=>{session=null;authChange('SIGNED_OUT',null);return{};}},rpc:async(name,args)=>{
-   const owner=session.user.id;if(!users.has(owner))users.set(owner,[]);const rows=users.get(owner);
+  const uid='11111111-1111-4111-8111-111111111111',uid2='22222222-2222-4222-8222-222222222222';let session={user:{id:uid},access_token:'fixture-A'},authChange,pushes=0,race=false;const boundTokens=[];const users=new Map();
+  const client={auth:{onAuthStateChange:fn=>{authChange=fn;return {data:{subscription:{unsubscribe(){}}}};},getSession:async()=>({data:{session}}),signInWithOAuth:async opts=>{check(opts.provider==='github','not GitHub OAuth');return{};},signOut:async()=>{session=null;authChange('SIGNED_OUT',null);return{};}},rpc:(name,args)=>{let token;const raced=race&&name==='append_wrongbook_ops';if(raced){race=false;session={user:{id:uid2},access_token:'fixture-B'};authChange('SIGNED_IN',session);}
+   return {setHeader(name,value){check(name==='Authorization','unbound header');token=value;boundTokens.push(value);return this;},abortSignal(){return this;},then(resolve,reject){return Promise.resolve().then(()=>{
+   const owner=token==='Bearer fixture-A'?uid:token==='Bearer fixture-B'?uid2:null;check(owner,'RPC did not pin session token');if(!users.has(owner))users.set(owner,[]);const rows=users.get(owner);
    if(name==='append_wrongbook_ops'){pushes++;for(const op of args.batch){const old=rows.find(r=>r.operation.id===op.id);if(old&&canonical(old.operation)!==canonical(op))throw Error('collision');if(!old)rows.push({commit_seq:rows.length+1,operation:op});}return {data:args.batch.map(op=>op.id)};}
    return {data:rows.filter(r=>r.commit_seq>args.after_seq).slice(0,args.page_size)};
-  },channel:()=>({on(){return this;},subscribe(){return this;}}),removeChannel(){}};
+  }).then(resolve,reject);}};},channel:()=>({on(){return this;},subscribe(){return this;}}),removeChannel(){}};
   const w=createCloudWorkspace({createClient:(_url,_key,options)=>{check(options.auth.storage!==sessionStorage&&typeof options.auth.storage.getItem==='function'&&options.auth.detectSessionInUrl===false,'persistent PKCE storage missing');return client;},url:'https://example.supabase.co/',key:'sb_publishable_synthetic',anonymous});await w.login(location.href);check(pushes===0,'login uploaded anonymously');
   check(await w.enable({saveBackup:async()=>true,confirmUpload:async()=>false})===false,'declined upload enabled');check(pushes===0,'declined upload sent');
   try{await w.enable({saveBackup:async()=>false,confirmUpload:async()=>true});throw Error('backup skipped');}catch(e){check(e.message.includes('必须先'),'backup not required');}
@@ -20,11 +21,12 @@ import {harness} from './harness.mjs';const h=await harness();try{
   const account=w.store,before=await account.cursor(),rows=users.get(uid);await account.applyRemote(rows);check(await account.cursor()===before,'duplicate page cursor changed');
   try{await account.applyRemote([{commit_seq:2,operation:{invalid:true}}]);throw Error('accepted corrupt pull');}catch{}check(await account.cursor()===before,'failed pull advanced cursor');
   await account.edit('2016-数学-05',{cause:'owned pending'});check((await account.batch(uid2)).length===0,'outbox cross user');
-  session={user:{id:uid2}};authChange('SIGNED_IN',session);check(!w.enabled,'account change not stopped');const count=pushes;await w.retry();check(pushes===count,'stopped sender ran');
+  race=true;const oldStore=w.store;await w.retry();check(boundTokens.at(-1)==='Bearer fixture-A','inflight request changed to new identity');check((await oldStore.batch(uid)).length===1,'account race cleared old pending');check(!users.has(uid2),'old operations uploaded to new account');
+  check(!w.enabled,'account change not stopped');const count=pushes;await w.retry();check(pushes===count,'stopped sender ran');
   const second=await RecordStore.open('mpa-wrongbook-v3:user:'+uid2,uid2);await second.initialize({getItem:()=>null});check(Object.keys((await second.read()).rows).length===0,'other account inherited records');
   // Restored ownership, clock and sent flags are ignored; operations become fresh pending data for B only after explicit import.
   const backup=await anonymous.backup();backup.recovery.meta=[{owner:uid,clock:{actorId:'spoof'}}];backup.recovery.outbox=[];await second.import(backup);check((await second.batch(uid2)).length===1,'restore trusted sent/owner flags');check(!await second.consent('test-project'),'restore trusted upload consent');check(!(await second.batch(uid)).length,'restore attached to old user');
   const previous=w.userId;await w.logout();check(!w.enabled&&session===null,'logout failed');w.destroy();second.close();anonymous.close();
-  return 'PASS: public-key guard, GitHub OAuth, no upload on login/refusal, required backup/consent, per-account DB/outbox, stop on signout/switch, atomic pull/cursor, duplicate pages, untrusted restore identity';
+  return 'PASS: public-key guard, GitHub OAuth, no upload on login/refusal, required backup/consent, per-account DB/outbox, stop on signout/switch, token-bound switch-during-request race preserves pending, atomic pull/cursor, duplicate pages, untrusted restore identity';
  }));
 }finally{await h.close();}

@@ -10,7 +10,9 @@
 | Safari 系统冻结后回前台 | 未验证 | 跨标签序号补漏、光标和正在输入草稿 |
 | 真实配额耗尽/浏览器回收 | 未验证 | 自动化仅注入 QuotaExceededError，不等于物理空间耗尽 |
 | 真实 Supabase PostgreSQL RLS/RPC | 通过（合成身份） | Dashboard 执行 verify-transaction.sql；anon 拒绝、两个数据库身份隔离、幂等/碰撞、fixture 回滚；Realtime publication 已启用 |
-| 真实 Supabase OAuth/API/Realtime | 待验收 | 两个真实 GitHub 账号、HTTP/WS、退出切号、断网补拉、分页；数据库角色测试不代替这些项目 |
+| 真实 Supabase 匿名 HTTP | 通过 | 真实 Chrome 请求两张表及 append/pull RPC 均 401；线上函数体与仓库一致 |
+| 真实 GitHub OAuth | 已到授权页，未完成 | MPA Wrongbook 申请只读邮箱；新增授权待用户确认，尚无回调成功证据 |
+| 真实 Supabase 已登录 API/Realtime | 未验证 | 两个真实 GitHub 账号、HTTP/WS、退出切号、断网补拉、分页；数据库角色测试不代替这些项目 |
 | PostgreSQL 多连接竞争 | 未验证 | RPC持锁延迟提交时第二写入等待；提交后逐页不漏操作 |
 
 ## iPhone Safari 与主屏幕

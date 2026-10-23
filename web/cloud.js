@@ -27,6 +27,7 @@ export class CloudWorkspace{
  }
  async login(redirectTo){const {error}=await this.client.auth.signInWithOAuth({provider:'github',options:{redirectTo}});if(error)throw error;}
  async identity(){const {data,error}=await this.client.auth.getSession();if(error)throw error;const id=data.session?.user?.id;if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('请先登录');return id;}
+ async token(userId,epoch){const {data,error}=await this.client.auth.getSession();if(error)throw error;const session=data.session;if(!this.enabled||epoch!==this.epoch||session?.user?.id!==userId||typeof session.access_token!=='string')throw Error('同步已停止或账号已变化');return session.access_token;}
  async selectUser(userId){
   this.stop();if(this.userId===userId&&this.store)return this.store;
   const epoch=this.epoch,next=await RecordStore.open(DB_NAME+':user:'+userId,userId);
@@ -45,8 +46,8 @@ export class CloudWorkspace{
  async start(){
   this.stop();const epoch=this.epoch,userId=this.userId,store=this.store;
   if(!store||await this.identity()!==userId||epoch!==this.epoch)throw Error('账号已变化');this.enabled=true;
-  const current=async()=>{if(!await store.consent(this.project)){this.stop();this.onState('paused');throw Error('云同步许可已撤销');}if(!this.enabled||epoch!==this.epoch||await this.identity()!==userId)throw Error('同步已停止或账号已变化');};
-  this.sender=new OutboxSender(store,{send:async(batch,{signal})=>{await current();const bounded=[];for(const op of batch){if(new TextEncoder().encode(JSON.stringify([...bounded,op])).length>1500000)break;bounded.push(op);}if(!bounded.length)throw Error('单项操作超过上传限制');let query=this.client.rpc('append_wrongbook_ops',{batch:bounded});if(query.abortSignal)query=query.abortSignal(signal);const {data,error}=await query;if(error)throw error;await current();return data;}},{userId,onState:(state,error)=>{this.lastState=state;this.onState(state==='idle'?'checking':state,error);}});
+  const current=async()=>{if(!await store.consent(this.project)){this.stop();this.onState('paused');throw Error('云同步许可已撤销');}return this.token(userId,epoch);};
+  this.sender=new OutboxSender(store,{send:async(batch,{signal})=>{const token=await current();const bounded=[];for(const op of batch){if(new TextEncoder().encode(JSON.stringify([...bounded,op])).length>1500000)break;bounded.push(op);}if(!bounded.length)throw Error('单项操作超过上传限制');let query=this.client.rpc('append_wrongbook_ops',{batch:bounded}).setHeader('Authorization','Bearer '+token);if(query.abortSignal)query=query.abortSignal(signal);const {data,error}=await query;if(error)throw error;await current();return data;}},{userId,onState:(state,error)=>{this.lastState=state;this.onState(state==='idle'?'checking':state,error);}});
   store.onSequence=()=>{this.onCommit();this.retry(false);};
   this.channel=this.client.channel('wrongbook:'+userId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'wrongbook_sync_heads',filter:'user_id=eq.'+userId},()=>this.retry(false)).subscribe(status=>{if(status==='SUBSCRIBED')this.retry(false);});
   this.foreground=()=>{if(!document.hidden)this.retry(false);};this.online=()=>this.retry();
@@ -59,7 +60,7 @@ export class CloudWorkspace{
   try{let page;do{
    if(!this.enabled||epoch!==this.epoch||await this.identity()!==userId)return false;
    if(!await store.consent(this.project)){this.stop();this.onState('paused');return false;}
-   const cursor=await store.cursor();let query=this.client.rpc('pull_wrongbook_ops',{after_seq:cursor,page_size:100});if(query.abortSignal)query=query.abortSignal(abort.signal);const {data,error}=await query;if(error)throw error;
+   const cursor=await store.cursor(),token=await this.token(userId,epoch);let query=this.client.rpc('pull_wrongbook_ops',{after_seq:cursor,page_size:100}).setHeader('Authorization','Bearer '+token);if(query.abortSignal)query=query.abortSignal(abort.signal);const {data,error}=await query;if(error)throw error;
    if(!this.enabled||epoch!==this.epoch||await this.identity()!==userId)return false;page=data;if(!Array.isArray(page))throw Error('拉取格式无效');if(page.length){await store.applyRemote(page);this.onCommit();}
   }while(page.length===100);return true;
   }catch(e){if(epoch===this.epoch)this.onState('failed',e);return false;}finally{clearTimeout(timeout);if(this.pullAbort===abort)this.pullAbort=null;this.pulling=false;}
