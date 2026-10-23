@@ -27,9 +27,10 @@ export class RecordStore{
   const operations=union(current.operations,incoming);const actorId=current.meta?.clock.actorId||crypto.randomUUID();
   let clock=current.meta?.clock||{wallMs:0,counter:0,actorId};for(const op of incoming)clock=tick(clock,actorId,Date.now(),op.clock);
   const known=new Set(current.operations.map(op=>op.id));const fresh=operations.filter(op=>!known.has(op.id));
+  if(current.meta&&!fresh.length&&!marker)return current;
   if(checkpoint)s.checkpoints.put({version:3,operations:current.operations,recovery:{}},crypto.randomUUID());
   for(const op of fresh){s.operations.add(op,op.id);if(!remote)s.outbox.add({opId:op.id,userId:this.userId},op.id);}
-  const meta={clock,owner:this.userId,seq:(current.meta?.seq||0)+1};s.records.put(project(operations),'all');s.meta.put(meta,'state');
+  const seq=(current.meta?.seq||0)+1;if(!Number.isSafeInteger(seq))throw Error('提交序号超出范围');const meta={clock,owner:this.userId,seq};s.records.put(project(operations),'all');s.meta.put(meta,'state');
   if(marker)s.migrations.put({marker,raw,completed:true},marker);
   return {meta,operations,rows:project(operations)};
  }

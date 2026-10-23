@@ -63,7 +63,12 @@ function render(){
 }
 $('export').onclick=async()=>{try{await queue;download(await store.backup(),'MPA-v3.review.json');}catch(e){msg('导出失败：'+e.message);}};
 $('export-v2').onclick=async()=>{try{await queue;download(await store.exportV2(),'MPA-v2-limited.review.json');}catch(e){msg('导出失败：'+e.message);}};
-$('emergency').onclick=async()=>{let database,error;try{database=await store?.backup();}catch(e){error=e.message;}download({format:'mpa-emergency-drafts',drafts:Object.fromEntries(drafts),database,error,legacy:{v1:localStorage.getItem('mpa_wrongbook_review_v1'),v2:localStorage.getItem('mpa_wrongbook_review_v2')}},'MPA-emergency.review.json');};
+$('emergency').onclick=async()=>{
+ let database,error;const legacy={};try{database=await store?.backup();}catch(e){error=e.message;}
+ for(const key of ['mpa_wrongbook_review_v1','mpa_wrongbook_review_v2'])try{legacy[key]=localStorage.getItem(key);}catch(e){legacy[key]={readError:e.message};}
+ const value={format:'mpa-emergency-drafts',drafts:Object.fromEntries(drafts),database,error,legacy};
+ try{download(value,'MPA-emergency.review.json');}catch(e){download({...value,database:undefined,error:'原始数据库无法序列化：'+e.message},'MPA-emergency.review.json');}
+};
 $('import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>20000000)throw Error('文件超过 20 MB');const text=await file.text();await queue;snapshot=await store.import(text);saved=snapshot.rows;refreshControls();msg('已合并复习记录；不同笔记版本全部保留，重复答题已去重。');saveStatus('已保存本机 · 云同步未配置');}catch(error){msg('导入失败，现有记录未改变：'+error.message);}finally{e.target.value='';}};
 for(const id of ['search','year','subject','topic'])$(id).addEventListener(id==='search'?'input':'change',render);
 for(const b of document.querySelectorAll('[data-view]'))b.onclick=()=>{view=b.dataset.view;render();};
