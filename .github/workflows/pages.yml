@@ -33,6 +33,8 @@ jobs:
       - run: BROWSER_ENGINE=webkit npm run test:browser
       - run: node tests/reliability.mjs
       - run: BROWSER_ENGINE=webkit node tests/reliability.mjs
+      - run: node tests/transport.mjs
+      - run: BROWSER_ENGINE=webkit node tests/transport.mjs
       - run: python scripts/verify_fixture.py
       - uses: actions/upload-pages-artifact@v3
         with:
