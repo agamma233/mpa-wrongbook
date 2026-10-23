@@ -30,6 +30,7 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - run: python scripts/verify_fixture.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
