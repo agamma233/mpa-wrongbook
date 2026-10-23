@@ -9,3 +9,5 @@ OutboxSender 仅接收显式注入的 transport；应用默认传 null，无任�
 回滚：关闭 sender 或撤掉页面通知仍可通过定时重读；保留 store/model、旧键、v3 数据库和 outbox，不退回只读 localStorage 的页面。完整 v3 可导入到干净浏览器；遇失败先紧急导出。
 
 独立D的WebKit回归暴露旧SW未显式预缓存新增模块的竞争，B已将model/store/transport加入必要壳缓存，并用waitUntil等待按需缓存写入；完整字体/内容摘要/安全静态允许列表仍由独立C负责。不是忽略失败检查。
+
+CI在两个Ubuntu镜像安装步骤多次停滞超过15分钟，改用官方Playwright 1.62.1容器（固定registry验证的SHA-256），包含浏览器与系统依赖；npm仍安装锁定版本，全部validate/audit/凭据扫描/Python/Node/Chromium/WebKit/fixture检查保留。仅测试job运行在容器，无自建服务，不改Pages部署权限。来源：https://playwright.dev/docs/docker 。
