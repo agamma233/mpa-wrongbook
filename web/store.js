@@ -18,7 +18,7 @@ export class RecordStore{
  async inspect(s){
   const [meta,operations,records,outbox]=await Promise.all([request(s.meta.get('state')),request(s.operations.getAll()),request(s.records.get('all')),request(s.outbox.getAll())]);
   const merged=union(operations),rows=project(merged),ids=new Set(merged.map(op=>op.id));
-  if(meta){if((meta.owner||null)!==this.userId||!clockValid(meta.clock)||!Number.isSafeInteger(meta.seq)||meta.seq<0||canonical(rows)!==canonical(records)||outbox.some(v=>!ids.has(v.opId)))throw Error('数据库一致性检查失败');}
+  if(meta){if((meta.owner??null)!==this.userId||!clockValid(meta.clock)||!Number.isSafeInteger(meta.seq)||meta.seq<1||merged.some(op=>compare(meta.clock,op.clock)<=0)||canonical(rows)!==canonical(records)||outbox.some(v=>v.userId!==this.userId||!ids.has(v.opId)))throw Error('数据库一致性检查失败');}
   else if(merged.length||records||outbox.length)throw Error('数据库元数据缺失');
   return {meta,operations:merged,rows};
  }
