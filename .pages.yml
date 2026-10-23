@@ -1,0 +1,195 @@
+{
+  "media": {
+    "input": "assets/questions",
+    "output": "assets/questions",
+    "extensions": [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp"
+    ]
+  },
+  "content": [
+    {
+      "name": "questions",
+      "label": "错题管理",
+      "type": "collection",
+      "path": "content/questions",
+      "format": "yaml-frontmatter",
+      "filename": {
+        "template": "{primary}.md",
+        "field": "create"
+      },
+      "view": {
+        "primary": "id",
+        "fields": [
+          "id",
+          "title",
+          "subject",
+          "question_status"
+        ]
+      },
+      "fields": [
+        {
+          "name": "id",
+          "label": "唯一题目 ID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "year",
+          "label": "年份（如2024周测）",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "subject",
+          "label": "科目",
+          "type": "select",
+          "options": {
+            "values": [
+              "数学",
+              "逻辑"
+            ]
+          },
+          "required": true
+        },
+        {
+          "name": "q",
+          "label": "题号",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "title",
+          "label": "标题",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "topic",
+          "label": "知识点",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "priority",
+          "label": "复习优先级",
+          "type": "select",
+          "options": {
+            "values": [
+              "高",
+              "常规",
+              "低"
+            ]
+          },
+          "required": true
+        },
+        {
+          "name": "question_text",
+          "label": "题干",
+          "type": "text"
+        },
+        {
+          "name": "options",
+          "label": "A—E选项（缺失时全部留空）",
+          "type": "object",
+          "fields": [
+            {
+              "name": "A",
+              "label": "选项 A",
+              "type": "text"
+            },
+            {
+              "name": "B",
+              "label": "选项 B",
+              "type": "text"
+            },
+            {
+              "name": "C",
+              "label": "选项 C",
+              "type": "text"
+            },
+            {
+              "name": "D",
+              "label": "选项 D",
+              "type": "text"
+            },
+            {
+              "name": "E",
+              "label": "选项 E",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "name": "wrong",
+          "label": "本人答案",
+          "type": "string"
+        },
+        {
+          "name": "correct",
+          "label": "正确答案（未知留空）",
+          "type": "string"
+        },
+        {
+          "name": "brief",
+          "label": "思路摘要",
+          "type": "text"
+        },
+        {
+          "name": "explain",
+          "label": "完整解析及错因分析",
+          "type": "text"
+        },
+        {
+          "name": "lesson",
+          "label": "复习要点",
+          "type": "text"
+        },
+        {
+          "name": "source",
+          "label": "来源",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "confidence",
+          "label": "可信度",
+          "type": "string"
+        },
+        {
+          "name": "question_status",
+          "label": "原题状态说明",
+          "type": "text",
+          "default": "待核实",
+          "required": true
+        },
+        {
+          "name": "question_image",
+          "label": "原卷图片",
+          "type": "image"
+        },
+        {
+          "name": "image_publication",
+          "label": "图片公开许可",
+          "type": "select",
+          "options": {
+            "values": [
+              "未授权",
+              "已授权"
+            ]
+          },
+          "default": "未授权"
+        },
+        {
+          "name": "question_image_file",
+          "label": "原始截图文件名（迁移审计）",
+          "type": "string",
+          "hidden": true,
+          "readonly": true
+        }
+      ]
+    }
+  ]
+}
