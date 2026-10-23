@@ -7,7 +7,10 @@ class ContentTests(unittest.TestCase):
  def test_history(self): m.audit()
  def test_counts(self):
   self.assertGreaterEqual(len(self.rows),40)
-  self.assertEqual(sum(bool(d['question_image']) for d in self.rows if d['year']=='2016'),16)
+  original=json.loads(m.re.search(r'<script id="records" type="application/json">(.*?)</script>',(m.ROOT/'legacy/index.html').read_text(),m.re.S)[1])
+  ids={d['id'] for d in original};historic=[d for d in self.rows if d['id'] in ids]
+  self.assertEqual(len(historic),40)
+  self.assertEqual(sum(bool(d['question_image']) for d in historic),16)
  def test_duplicate_id(self):
   with self.assertRaises(ValueError): m.validate(self.rows+[self.rows[0]])
  def test_duplicate_question(self):
