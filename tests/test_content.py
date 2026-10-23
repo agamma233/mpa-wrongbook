@@ -39,3 +39,18 @@ class BuildTests(unittest.TestCase):
    try:
     m.ROOT=root;m.build();rows=json.loads((root/'dist/questions.json').read_text());self.assertEqual(len(rows),41);self.assertTrue(any(x['id']==d['id'] for x in rows));self.assertFalse((root/'dist/legacy').exists());self.assertEqual(len(list((root/'dist').rglob('*.jpg'))),0)
    finally:m.ROOT=original
+
+class CmsCompatibilityTests(unittest.TestCase):
+ def test_empty_optional_fields(self):
+  d=copy.deepcopy(m.load()[0]);d.update(options={k:None for k in 'ABCDE'},correct=None,wrong=None,question_image=None,question_status='待核实；待补原卷')
+  for key in ('brief','explain','lesson','confidence'):d.pop(key)
+  result=m.normalize_cms(d)
+  m.validate([result]);self.assertEqual(result['options'],{});self.assertEqual(result['correct'],'');self.assertEqual(result['brief'],'')
+ def test_partial_options_still_fail(self):
+  d=copy.deepcopy(m.load()[0]);d['options']={'A':'已知','B':None}
+  with self.assertRaises(ValueError):m.validate([m.normalize_cms(d)])
+ def test_required_source_still_required(self):
+  d=copy.deepcopy(m.load()[0]);d.pop('source')
+  with self.assertRaises(ValueError):m.validate([m.normalize_cms(d)])
+ def test_duplicate_yaml_keys_fail(self):
+  with self.assertRaises(ValueError):m.yaml.load('correct: A\ncorrect: B\n',Loader=m.UniqueKeyLoader)

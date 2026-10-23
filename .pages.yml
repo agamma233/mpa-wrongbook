@@ -150,7 +150,8 @@
         {
           "name": "source",
           "label": "来源",
-          "type": "text"
+          "type": "text",
+          "required": true
         },
         {
           "name": "confidence",
@@ -180,6 +181,13 @@
             ]
           },
           "default": "未授权"
+        },
+        {
+          "name": "question_image_file",
+          "label": "原始截图文件名（迁移审计）",
+          "type": "string",
+          "hidden": true,
+          "readonly": true
         }
       ]
     }

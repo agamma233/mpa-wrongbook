@@ -3,11 +3,40 @@ from pathlib import Path
 import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FIELDS = 'id year subject q title topic priority question_text options wrong correct brief explain lesson source confidence question_status question_image'.split()
+OPTIONAL_TEXT = ('question_text', 'wrong', 'correct', 'brief', 'explain', 'lesson', 'confidence', 'question_image')
+class UniqueKeyLoader(yaml.SafeLoader):
+    pass
+
+def unique_mapping(loader, node, deep=False):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in result:
+            raise ValueError(f'重复 YAML 字段: {key}')
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
+
+UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+
+def normalize_cms(data):
+    if not isinstance(data, dict):
+        raise ValueError('题目 frontmatter 必须是对象')
+    data = dict(data)
+    for key in OPTIONAL_TEXT:
+        if data.get(key) is None:
+            data[key] = ''
+    options = data.get('options')
+    if options is None or (isinstance(options, dict) and set(options) <= set('ABCDE') and all(value is None or value == '' for value in options.values())):
+        data['options'] = {}
+    if data.get('image_publication') is None:
+        data['image_publication'] = '未授权'
+    return data
+
 def read(path):
     text = path.read_text(encoding='utf-8')
     parts = re.split(r'^---\s*$', text, maxsplit=2, flags=re.M)
     if len(parts) != 3 or parts[0].strip(): raise ValueError(f'{path}: 无效 frontmatter')
-    data = yaml.safe_load(parts[1])
+    data = normalize_cms(yaml.load(parts[1], Loader=UniqueKeyLoader))
     if parts[2].strip(): raise ValueError(f'{path}: 请将正文写入 question_text/解析字段，避免遗漏')
     return data
 
@@ -31,7 +60,7 @@ def validate(rows, root=ROOT):
         if d['question_image']:
             rel = Path(d['question_image'].lstrip('/'))
             if '..' in rel.parts or rel.parts[:2] != ('assets','questions') or rel.suffix.lower() not in ('.jpg','.jpeg','.png','.webp'): raise ValueError('图片路径非法')
-            if not (root/rel).is_file(): raise ValueError(f'图片不存在: {rel}')
+            if not (root/rel).resolve().is_relative_to(root.resolve()) or not (root/rel).is_file(): raise ValueError(f'图片不存在或越出项目: {rel}')
         fingerprint = re.sub(r'\s+', '', d['question_text']) + json.dumps(d['options'],ensure_ascii=False,sort_keys=True)
         if fingerprint in fingerprints: raise ValueError(f'重复题目: {ident}')
         fingerprints.add(fingerprint)
