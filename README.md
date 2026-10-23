@@ -6,7 +6,7 @@
 
 正式地址：[MPA 错题学习台](https://agamma233.github.io/mpa-wrongbook/)。保持 GitHub 题库、Pages CMS 和 GitHub Pages；main 每次提交运行内容验证、历史 audit、凭据扫描、记录/浏览器测试后部署，PR 只测试不部署。
 
-A 本地事务、B 标签页/outbox、C 移动/PWA 分别通过独立 PR 交付。D 已接入官方 SDK、GitHub PKCE 登录及独立账号数据库；默认不上传，需完成 v3 备份验证并明确启用。真实项目数据库 RLS/RPC 已验收，真实 OAuth/设备结果见 D 报告。个人记录不上传 GitHub。历史16张原卷的公开授权已有用户确认；新素材仍须单独确认。
+A 本地事务、B 标签页/outbox、C 移动/PWA 分别通过独立 PR 交付。D 已接入官方 SDK、GitHub PKCE 登录及独立账号数据库；默认不上传，需完成 v3 备份验证并明确启用。真实项目 RLS/RPC、Chrome OAuth 和合成记录收发/断网恢复已验收，iPhone及双设备仍未验证，见 D 报告。个人记录不上传 GitHub。历史16张原卷的公开授权已有用户确认；新素材仍须单独确认。
 
 重新部署或 fork 时，在 Settings → Pages 选择 GitHub Actions。免费 Pages 的仓库可见性要求需按自己的账户确认，不能通过公开个人备份或凭据解决部署问题。
 
