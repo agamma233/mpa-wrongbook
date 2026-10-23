@@ -2,7 +2,7 @@ import {canonical} from './model.js';
 // Only an injected transport can send. The application defaults to local-only.
 export class OutboxSender{
  constructor(store,transport,{userId=null,timeout=15000,random=Math.random,onState=()=>{}}={}){Object.assign(this,{store,transport,userId,timeout,random,onState});this.running=false;this.stopped=false;this.failures=0;this.timer=null;}
- retry(){clearTimeout(this.timer);if(!this.running&&!this.stopped)return this.flush();}
+ retry({force=true}={}){if(!force&&this.timer)return;clearTimeout(this.timer);this.timer=null;if(!this.running&&!this.stopped)return this.flush();}
  stop(){this.stopped=true;clearTimeout(this.timer);this.controller?.abort();}
  async flush(){
   if(this.running||this.stopped)return;this.running=true;let retry=false;
@@ -17,7 +17,7 @@ export class OutboxSender{
    await this.store.acknowledge(ack,this.userId);this.failures=0;
    const pending=(await this.store.batch(this.userId)).length;this.onState(pending?'waiting':'idle');retry=pending>0;if(!ack.length)this.failures++;
   }catch(e){if(!this.stopped){this.failures++;this.onState('failed',e);retry=true;}}
-  finally{this.running=false;if(retry&&!this.stopped){const delay=Math.min(60000,500*2**Math.min(this.failures,7))*(.5+this.random());this.timer=setTimeout(()=>this.flush(),delay);}}
+  finally{this.running=false;if(retry&&!this.stopped){const delay=Math.min(60000,500*2**Math.min(this.failures,7))*(.5+this.random());this.timer=setTimeout(()=>{this.timer=null;this.flush();},delay);}}
  }
 }
 export class SimulatedTransport{

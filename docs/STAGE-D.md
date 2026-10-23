@@ -33,3 +33,23 @@ Outbox 绑定当前用户；请求前后核对会话与 epoch，退出/切号停
 调用 stop/destroy 并关闭登录上传入口即可回到本地；保留所有匿名/账号数据库、旧localStorage键、未发送outbox、v3备份。不要删表/库或把UI退回只读旧键。需要恢复账号数据时，先导出该账号 workspace.store 的完整备份，再在正确账号确认目标后导入。SQL权限错误应修正并重跑负例，不扩大anon权限或使用service-role替代。
 
 补充本地保护：重复 v3 导入不创建新提交序号/检查点；旧 localStorage 被浏览器策略禁止时紧急导出仍能保存草稿。真实双标签 UI 测试验证普通编辑只延续选定笔记分支，显式解决冲突才引用所有 heads；持久化 HLC 覆盖关闭重开、回拨及接收未来时钟后继续编辑。
+
+## D 正式接入增量（2026-10-23）
+
+此前的默认关闭适配器已接入生产 UI；下面的说明取代上文“无 SDK / 无登录入口 / sessionStorage 会话”的旧状态。
+
+- 官方 `@supabase/supabase-js` 固定 **2.118.0**，直接复用 npm 官方 UMD 原件，MIT 许可证随包保留；`tests/cloud-ui.mjs` 检查与安装包字节一致。SDK 随公开摘要缓存，无 CDN 运行时依赖。
+- `web/cloud-config.js` 只含项目 URL、Publishable key 和传输开关。对应真实项目 `yladshlpuspylvexuial`，Pages 回调为 `https://agamma233.github.io/mpa-wrongbook/`；Supabase Site URL 和 redirect allowlist 已核对，GitHub provider 已启用。
+- PKCE 校验器和会话存入独立 IndexedDB，支持同浏览器导航/重开；回调通过 SDK 兑换并清理 URL。Safari 与主屏幕安装可能使用不同站点存储，必须分别登录，不能跨浏览器完成同一次 PKCE。
+- 登录立即打开 `mpa-wrongbook-v3:user:<uuid>`，不复制匿名记录、不发送个人操作。需迁移匿名数据时先匿名导出，再登录并主动导入。不同账号的库、outbox、游标和启用许可独立。
+- 首次启用需下载当前账号完整 v3，再选择已保存文件逐字验证，最后勾选上传确认。备份后记录若变化需重新下载验证。许可仅保存于当前账号数据库，不从备份恢复；同浏览器刷新/新标签会恢复已启用状态。退出或暂停撤销自动恢复许可，保留所有数据与待发送项。
+- 发送复用 outbox 的固定 opId、精确确认、抖动退避、超时/断网补发。Realtime 只通知同步头；前台每 5 秒补拉，另有启动、pageshow、online 和手动重试。远端操作与游标在同一事务落库。云失败不会撤销本机保存，网络等待不锁编辑界面。
+- SW 继续严格限于公开文件白名单；带查询的 OAuth 回调、Authorization 请求、跨域 Supabase、Auth/REST/Realtime 请求均不进入缓存。更新不改个人数据库。
+
+真实项目已存在 `schema.sql` 对应表/RPC，未覆盖重建。已执行 `supabase/realtime.sql`，仅发布受 RLS 约束的同步头。`supabase/verify-transaction.sql` 已在真实 Dashboard 运行通过：anon 拒绝、两个**合成数据库身份**相互隔离、RPC 幂等、碰撞拒绝、禁止直接修改；fixture 在事务中回滚，最终确认清理完成。该验证不代表两个真实 GitHub 账号登录通过。
+
+新增自动回归使用官方 SDK 和**模拟 HTTP**测试 PKCE、会话恢复、备份与许可、独立账号、断网/刷新/补发及同 context 双标签。WebKit 下需禁用该测试 context 的 SW，否则 Playwright 不能完整拦截由 SW 控制页面发出的请求；真正 SW 行为由独立 Chromium/WebKit PWA 套件覆盖，不能据此声称真实 OAuth 或双设备通过。
+
+真实 GitHub OAuth、Supabase HTTP/Realtime、iPhone Safari/主屏幕和 MacBook 双设备结果，以 `docs/MANUAL-ACCEPTANCE.md` 最新记录为准；未填写通过的项目仍未验证。
+
+回滚：优先在当前 UI 点击“暂停云同步”；发布紧急停传时将 `cloudConfig.enabled` 改为 `false`，仍保留账号选择/本机 IndexedDB 适配器。禁止整体回退到旧的匿名专用 UI。保留匿名库、全部账号库、auth 库、旧 localStorage、outbox、游标、冲突和 v3 文件；不删除云表或重置游标。恢复时重新备份并明确启用；备份的账号/设备/发送标记与许可均不可信。

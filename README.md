@@ -6,7 +6,7 @@
 
 正式地址：[MPA 错题学习台](https://agamma233.github.io/mpa-wrongbook/)。保持 GitHub 题库、Pages CMS 和 GitHub Pages；main 每次提交运行内容验证、历史 audit、凭据扫描、记录/浏览器测试后部署，PR 只测试不部署。
 
-A 本地事务、B 标签页/outbox、C 移动/PWA 分别通过独立 PR 交付。D 提供默认关闭的可选 Supabase 适配代码，未真实联调，生产 UI 没有登录上传入口。个人记录不上传 GitHub。历史16张原卷的公开授权已有用户确认；新素材仍须单独确认。
+A 本地事务、B 标签页/outbox、C 移动/PWA 分别通过独立 PR 交付。D 已接入官方 SDK、GitHub PKCE 登录及独立账号数据库；默认不上传，需完成 v3 备份验证并明确启用。真实项目数据库 RLS/RPC 已验收，真实 OAuth/设备结果见 D 报告。个人记录不上传 GitHub。历史16张原卷的公开授权已有用户确认；新素材仍须单独确认。
 
 重新部署或 fork 时，在 Settings → Pages 选择 GitHub Actions。免费 Pages 的仓库可见性要求需按自己的账户确认，不能通过公开个人备份或凭据解决部署问题。
 
@@ -67,7 +67,7 @@ python3 scripts/manage.py audit
 - 完整 v3 备份包含不可变操作、笔记祖先/冲突、迁移原文、检查点和待发送信息。导入先验证操作，再在事务内按最新状态合并并留检查点；重复导入不重复事件，失败不部分写入。恢复不信任设备身份、账号或已发送标记。
 - v2 兼容导出仅包含显示记录，不含笔记分支与清空历史，不适合完整恢复。v1、v2、历史 JSON 均可迁移或导入。
 - 不同字段各自合并；掌握状态和下次复习日期成组。笔记并发修改保留独立版本，可“以当前笔记解决冲突”；清空也是新版本，旧版本不回收。答题 ID 相同但内容不同会拒绝整个导入。
-- 云服务默认未配置，尚无跨设备实时同步。先导出再到另一设备导入。浏览器清理、系统回收、无痕模式仍可能删除本机数据库，独立备份不可省略。
+- 默认仅本地。使用 GitHub 登录后选择“备份并启用云同步”，下载完整 v3 并选择已保存文件验证，再勾选确认。匿名记录不自动复制：先匿名导出，再登录导入。刷新会恢复当前设备已启用的账号；暂停或退出撤销许可，保留未发送项。浏览器清理、系统回收、无痕模式仍可能删除本机数据库，独立备份不可省略。
 
 ## 测试
 
@@ -100,7 +100,7 @@ python3 scripts/verify_fixture.py
 
 历史40题字段差异0、16图字节一致、24道缺失标记保留。完整集成验证包括15项Python、13项Node、PostgreSQL WASM角色/RLS测试及Chromium/WebKit浏览器回归、记录可靠性、模拟传输与PWA更新测试；fixture仍验证新增题和原卷解码，未修改已跟踪截图。
 
-阶段报告：[A](docs/STAGE-A.md)、[B](docs/STAGE-B.md)、[C](docs/STAGE-C.md)、[D](docs/STAGE-D.md)。[交付与恢复说明](docs/DELIVERY.md)记录证据和恢复路径；[真机验收表](docs/MANUAL-ACCEPTANCE.md)单列未验证项目。真实iPhone Safari、主屏幕安装、MacBook双设备及真实Supabase未验证，不能用自动化测试替代。
+阶段报告：[A](docs/STAGE-A.md)、[B](docs/STAGE-B.md)、[C](docs/STAGE-C.md)、[D](docs/STAGE-D.md)。[交付与恢复说明](docs/DELIVERY.md)记录证据和恢复路径；[真机验收表](docs/MANUAL-ACCEPTANCE.md)单列未验证项目。真实iPhone Safari、主屏幕安装、MacBook双设备及真实OAuth结果见真机验收表，不能用自动化测试替代。
 
 ## 安装到 iPhone 与离线更新
 

@@ -6,10 +6,11 @@
 | --- | --- | --- |
 | 真实 iPhone Safari | 未验证 | 型号/iOS版本；保存、关闭重开、飞行模式重载、公式、原卷下载 |
 | iPhone 主屏幕安装 | 未验证 | 图标、/mpa-wrongbook/启动路径、standalone界面、离线启动、版本更新 |
-| MacBook + 第二设备 | 未验证 | 两台设备/浏览器信息、备份交换、冲突保留；默认无跨设备实时同步 |
+| MacBook + 第二设备 | 未验证 | 两台设备/浏览器信息、备份交换、冲突保留；已提供可选云同步，尚需真实双设备证据 |
 | Safari 系统冻结后回前台 | 未验证 | 跨标签序号补漏、光标和正在输入草稿 |
 | 真实配额耗尽/浏览器回收 | 未验证 | 自动化仅注入 QuotaExceededError，不等于物理空间耗尽 |
-| 真实 Supabase OAuth/API/Realtime | 未联调 | anon与两个真实账号越权、退出切号、断网补拉、分页 |
+| 真实 Supabase PostgreSQL RLS/RPC | 通过（合成身份） | Dashboard 执行 verify-transaction.sql；anon 拒绝、两个数据库身份隔离、幂等/碰撞、fixture 回滚；Realtime publication 已启用 |
+| 真实 Supabase OAuth/API/Realtime | 待验收 | 两个真实 GitHub 账号、HTTP/WS、退出切号、断网补拉、分页；数据库角色测试不代替这些项目 |
 | PostgreSQL 多连接竞争 | 未验证 | RPC持锁延迟提交时第二写入等待；提交后逐页不漏操作 |
 
 ## iPhone Safari 与主屏幕

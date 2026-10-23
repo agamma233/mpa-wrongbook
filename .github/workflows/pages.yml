@@ -44,6 +44,8 @@ jobs:
       - run: BROWSER_ENGINE=webkit node tests/reliability.mjs
       - run: node tests/transport.mjs
       - run: BROWSER_ENGINE=webkit node tests/transport.mjs
+      - run: node tests/cloud-ui.mjs
+      - run: BROWSER_ENGINE=webkit node tests/cloud-ui.mjs
       - run: node tests/cloud.mjs
       - run: BROWSER_ENGINE=webkit node tests/cloud.mjs
       - run: node tests/pwa.mjs
