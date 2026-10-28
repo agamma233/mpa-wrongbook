@@ -5,7 +5,7 @@ const h=await harness({serviceWorkers:'block'}),uid='33333333-3333-4333-8333-333
 const project='https://yladshlpuspylvexuial.supabase.co';let pushes=0,offline=false,authorizedUrl,rows=[],activePage,network=[];
 const session=id=>({access_token:[btoa('{}'),btoa(JSON.stringify({sub:id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})), 'synthetic'].join('.'),refresh_token:'synthetic-refresh',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',user_metadata:{user_name:id===uid?'fixture-A':'fixture-B'}}});
 try{
- await h.context.route(project+'/**',async route=>{const r=route.request(),url=new URL(r.url());network.push(url.pathname);const headers={'access-control-allow-origin':new URL(h.base).origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS'};
+ await h.context.route(project+'/**',async route=>{const r=route.request(),url=new URL(r.url());network.push(url.pathname);const headers={'access-control-allow-origin':new URL(h.base).origin,'access-control-allow-headers':'authorization,apikey,content-type,x-client-info,x-supabase-api-version','access-control-allow-methods':'GET,POST,OPTIONS'};
   // API outage is HTTP 503 here. Real socket loss is covered in transport/PWA tests;
   // WebKit can emit a browser pageerror for an injected cross-origin route.abort().
   if(r.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
