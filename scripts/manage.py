@@ -47,7 +47,7 @@ def validate(rows, root=ROOT):
         for k in FIELDS:
             if k not in ('q', 'options') and not isinstance(d[k], str): raise ValueError(f'{d.get("id")}: {k} 必须是文本')
         ident = f'{d["year"]}-{d["subject"]}-{d["q"]:02d}' if type(d['q']) is int else ''
-        if d['id'] != ident or not re.fullmatch(r'[0-9]{4}(周测)?-(数学|逻辑)-[0-9]{2,3}', ident): raise ValueError('ID/年份/科目/题号不一致')
+        if d['id'] != ident or not re.fullmatch(r'[0-9]{4}(周测|改编)?-(数学|逻辑)-[0-9]{2,3}', ident): raise ValueError('ID/年份/科目/题号不一致')
         if ident in ids: raise ValueError(f'重复 ID: {ident}')
         ids.add(ident)
         if d['subject'] not in ('数学','逻辑') or not 1 <= d['q'] <= 999: raise ValueError('科目/题号无效')

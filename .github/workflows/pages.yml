@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test-build:
-    runs-on: ubuntu-latest
+    # Match setup-python toolcache ABI to the Noble job container.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     # Official Playwright 1.62.1 image: browsers + system dependencies,
     # pinned to its verified multi-platform digest; avoid flaky runner apt mirrors.
