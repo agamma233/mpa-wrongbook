@@ -29,6 +29,12 @@ class ContentTests(unittest.TestCase):
  def test_new_question(self):
   d=copy.deepcopy(self.rows[0]);d.update(id='9999-数学-999',year='9999',subject='数学',q=999,question_text='测试专用：1+1=?',correct='B',options=dict(zip('ABCDE',['1','2','3','4','5'])),question_image='',source='自动化测试，无真实试题')
   self.assertEqual(len(m.validate(self.rows+[d])),len(self.rows)+1)
+ def test_adapted_year_id_is_preserved(self):
+  d=copy.deepcopy(self.rows[0]);d.update(id='2025改编-数学-05',year='2025改编',subject='数学',q=5)
+  self.assertEqual(m.validate([d])[0]['id'],'2025改编-数学-05')
+ def test_unsupported_year_suffix_rejected(self):
+  d=copy.deepcopy(self.rows[0]);d.update(id='2025未知-数学-05',year='2025未知',subject='数学',q=5)
+  with self.assertRaises(ValueError):m.validate([d])
 if __name__=='__main__':unittest.main()
 
 class BuildTests(unittest.TestCase):
